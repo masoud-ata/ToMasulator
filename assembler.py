@@ -18,7 +18,7 @@ def assemble(raw_code=""):
             instructions.append(inst)
         else:
             success = False
-            offending_line = line_num + 1
+            offending_line = line_num
             break
     return success, offending_line, instructions
 

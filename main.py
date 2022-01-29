@@ -1,11 +1,16 @@
 import sys
-from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton, QApplication, QTextEdit, QLabel, QMainWindow, QGraphicsColorizeEffect)
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow)
+from PyQt5.QtGui import QFont, QPainter, QPen
+from PyQt5.QtCore import Qt
+
 from gui import QCodeEditor
 
-from processor import Processor, InstructionMemory
+from processor import Processor
 from assembler import assemble
-from instruction import Instruction
+
+DEFAULT_PROGRAM = \
+    "fadd   f1, f2, f3 \nfsub   f3, f4, f6\nfmul   f5, f10, f1\nflw    f5, 100(x1)\nfsw    f6, 200(x2)\n" \
+    "fadd   f1, f2, f3 \nfsub   f3, f4, f6\nfmul   f5, f10, f1\nflw    f5, 100(x1)\nfsw    f6, 200(x2)"
 
 
 class MainWindow(QMainWindow):
@@ -14,13 +19,17 @@ class MainWindow(QMainWindow):
 
         self.cpu = Processor()
 
-        self.issue_slot_labels = None
+        self.issue_slot_labels = []
+        self.add_sub_reservation_station_labels = []
+        self.mul_div_reservation_station_labels = []
         self.text_editor = QCodeEditor(self)
-        self.text_editor_label = QLabel('Pass', self)
-        self.step_button = None
-        self.load_button = None
+        self.text_editor_status_label = QLabel('Pass', self)
+        self.step_button = QPushButton('Step', self)
+        self.load_button = QPushButton('Load Program', self)
         self.init_text_editor()
         self.init_issue_slot_labels()
+        self.init_add_sub_reservation_station_labels()
+        self.init_mul_div_reservation_station_labels()
         self.init_buttons()
 
         self.statusBar().showMessage('Status bar')
@@ -32,63 +41,100 @@ class MainWindow(QMainWindow):
         self.text_editor.move(10, 10)
         self.text_editor.resize(250, 200)
         self.text_editor.setFont(QFont('Consolas', 14))
-        self.text_editor.setPlainText("fadd   f1, f2, f3 \nfsub   f3, f4, f6\nfmul   f5, f10, f1\nflw    f5, 100(x1)\nfsw    f6, 200(x2)")
+        self.text_editor.setPlainText(DEFAULT_PROGRAM)
 
-        self.text_editor_label.move(10, 220)
-        self.text_editor_label.resize(250, 25)
-        self.text_editor_label.setFont(QFont('Consolas', 14))
-        self.text_editor_label.setStyleSheet("background-color: green;")
+        self.text_editor_status_label.move(10, 220)
+        self.text_editor_status_label.resize(250, 25)
+        self.text_editor_status_label.setFont(QFont('Consolas', 14))
+        self.text_editor_status_label.setStyleSheet("background-color: green;")
 
     def init_issue_slot_labels(self):
-        self.issue_slot_labels = []
         for i in range(3):
-            self.issue_slot_labels.append(QLabel('This is label ' + str(i), self))
-            self.issue_slot_labels[i].move(300, 120 + i * 30)
+            self.issue_slot_labels.append(QLabel("", self))
+            self.issue_slot_labels[i].move(500, 210 - i * 30)
             self.issue_slot_labels[i].setFont(QFont('Consolas', 14))
             self.issue_slot_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
-            self.issue_slot_labels[i].resize(200, 30)
+            self.issue_slot_labels[i].resize(220, 30)
+
+    def init_add_sub_reservation_station_labels(self):
+        for i in range(len(self.cpu.add_sub_reservation_stations)):
+            self.add_sub_reservation_station_labels.append(QLabel("", self))
+            self.add_sub_reservation_station_labels[i].move(300, 310 + i * 30)
+            self.add_sub_reservation_station_labels[i].setFont(QFont('Consolas', 14))
+            self.add_sub_reservation_station_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
+            self.add_sub_reservation_station_labels[i].resize(220, 30)
+
+    def init_mul_div_reservation_station_labels(self):
+        for i in range(len(self.cpu.mul_div_reservation_stations)):
+            self.mul_div_reservation_station_labels.append(QLabel("", self))
+            self.mul_div_reservation_station_labels[i].move(600, 310 + i * 30)
+            self.mul_div_reservation_station_labels[i].setFont(QFont('Consolas', 14))
+            self.mul_div_reservation_station_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
+            self.mul_div_reservation_station_labels[i].resize(220, 30)
 
     def init_buttons(self):
-        QToolTip.setFont(QFont('SansSerif', 10))
-        self.setToolTip('This is a <b>QWidget</b> widget')
-
-        self.step_button = QPushButton('Step', self)
-        self.step_button.setToolTip('This is a <b>QPushButton</b> widget')
+        self.step_button.setToolTip('Step one cycle')
         self.step_button.resize(self.step_button.sizeHint())
-        self.step_button.move(300, 50)
-
+        self.step_button.move(300, 10)
         self.step_button.clicked.connect(self.step_button_pressed)
 
-        self.setToolTip('This is a <b>QWidget</b> widget')
-
-        self.load_button = QPushButton('Load Program', self)
-        self.load_button.setToolTip('This is a <b>QPushButton</b> widget 2')
+        self.load_button.setToolTip('Load the program into the issue buffer')
         self.load_button.resize(self.step_button.sizeHint())
-        self.load_button.move(300, 80)
-
+        self.load_button.move(300, 40)
         self.load_button.clicked.connect(self.load_program_button_pressed)
 
     def step_button_pressed(self):
-        self.text_editor.setPlainText(
-            "fadd f1, f2, f3 \nfsub f3, f4, f6\nfmul f5, f10, f1\nflw f5, 100(x1)\nfsw f6, 200(x2)")
-        pass
+        self.cpu.tick()
+        self.update_reservation_station_visual()
+        self.update_instruction_queue_visual()
 
     def load_program_button_pressed(self):
         raw_assembly_code = self.text_editor.toPlainText().lower()
         success, offending_line, instructions = assemble(raw_assembly_code)
-        if not success:
-            self.text_editor_label.setText("Error at line " + str(offending_line))
-            self.text_editor_label.setStyleSheet("background-color: red;")
-        else:
-            self.text_editor_label.setText("Pass")
-            self.text_editor_label.setStyleSheet("background-color: green;")
+        if success:
             self.cpu.reset()
-            self.cpu.load(instructions)
-            for i, slot_label in enumerate(self.issue_slot_labels):
-                if i < len(self.cpu.instruction_issue_queue):
-                    slot_label.setText(self.cpu.instruction_issue_queue[i].string)
-                else:
-                    slot_label.setText("")
+            self.cpu.upload_to_memory(instructions)
+            self.update_instruction_queue_visual()
+        self.update_text_editor_visual(success, offending_line)
+        self.update_reservation_station_visual()
+
+    def update_text_editor_visual(self, assembly_succeeded, offending_line):
+        if assembly_succeeded:
+            self.text_editor_status_label.setText("Pass")
+            self.text_editor_status_label.setStyleSheet("background-color: green;")
+            self.text_editor.clear_highlight()
+        else:
+            self.text_editor_status_label.setText("Error at line " + str(offending_line))
+            self.text_editor_status_label.setStyleSheet("background-color: red;")
+            self.text_editor.clear_highlight()
+            self.text_editor.highlight_line(offending_line, "red")
+
+    def update_instruction_queue_visual(self):
+        for i, slot_label in enumerate(self.issue_slot_labels):
+            if i < len(self.cpu.instruction_queue.instructions):
+                slot_label.setText(self.cpu.instruction_queue[i].raw_text)
+            else:
+                slot_label.setText("")
+
+    def update_reservation_station_visual(self):
+        for i, label in enumerate(self.add_sub_reservation_station_labels):
+            if self.cpu.add_sub_reservation_stations[i].busy:
+                label.setText(self.cpu.add_sub_reservation_stations[i].instruction.raw_text)
+            else:
+                label.setText("")
+        for i, label in enumerate(self.mul_div_reservation_station_labels):
+            if self.cpu.mul_div_reservation_stations[i].busy:
+                label.setText(self.cpu.mul_div_reservation_stations[i].instruction.raw_text)
+            else:
+                label.setText("")
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(Qt.black)
+        painter.setBrush(Qt.white)
+        painter.drawLine(600+100, 370, 600+100, 500)
+        painter.drawLine(300 + 100, 370, 300 + 100, 500)
+        painter.drawLine(300, 500, 900, 500)
 
 
 def main():

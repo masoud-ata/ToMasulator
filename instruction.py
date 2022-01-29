@@ -1,6 +1,6 @@
 class Instruction:
     def __init__(self, string):
-        self.string = string
+        self.raw_text = string
         self.operation = ""
         self.destination = ""
         self.source1 = ""
