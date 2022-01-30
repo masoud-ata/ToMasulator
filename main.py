@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QHeaderView)
-from PyQt5.QtGui import QFont, QPainter, QPen
+from PyQt5.QtGui import QFont, QPainter
 from PyQt5.QtCore import Qt
 
 from gui import QCodeEditor
@@ -135,13 +135,19 @@ class MainWindow(QMainWindow):
 
     def update_reservation_station_visual(self):
         for i, label in enumerate(self.add_sub_reservation_station_labels):
+            label.setStyleSheet("background-color: white; border: 1px solid black;")
             if self.cpu.add_sub_reservation_stations[i].state != self.cpu.add_sub_reservation_stations[i].State.FREE:
                 label.setText(self.cpu.add_sub_reservation_stations[i].instruction.raw_text)
+                if self.cpu.add_sub_reservation_stations[i].state == self.cpu.add_sub_reservation_stations[i].State.ISSUED:
+                    label.setStyleSheet("background-color: lightgreen; border: 1px solid black;")
             else:
                 label.setText("")
         for i, label in enumerate(self.mul_div_reservation_station_labels):
+            label.setStyleSheet("background-color: white; border: 1px solid black;")
             if self.cpu.mul_div_reservation_stations[i].state != self.cpu.mul_div_reservation_stations[i].State.FREE:
                 label.setText(self.cpu.mul_div_reservation_stations[i].instruction.raw_text)
+                if self.cpu.mul_div_reservation_stations[i].state == self.cpu.mul_div_reservation_stations[i].State.ISSUED:
+                    label.setStyleSheet("background-color: lightgreen; border: 1px solid black;")
             else:
                 label.setText("")
 
