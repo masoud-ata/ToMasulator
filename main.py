@@ -9,7 +9,7 @@ from processor import Processor
 from assembler import assemble
 
 DEFAULT_PROGRAM = \
-    "fadd f1, f2, f3 \nfsub f3, f4, f1\nfmul f5, f10, f10\n" \
+    "fsw  f1, 0(x1) \nfadd f1, f2, f3 \nfsub f3, f4, f1\nfmul f5, f10, f10\n" \
     "fadd f8, f2, f3 \nfsub f9, f4, f6\nfmul f10, f10, f1\n"
 
 
@@ -24,10 +24,12 @@ class MainWindow(QMainWindow):
         self.issue_slot_labels = []
         self.add_sub_reservation_station_labels = []
         self.mul_div_reservation_station_labels = []
+        self.load_store_reservation_station_labels = []
         self.text_editor = QCodeEditor(self)
         self.timing_table = QTableWidget(self)
         self.text_editor_status_label = QLabel('Pass', self)
         self.step_button = QPushButton('Step', self)
+        self.run_button = QPushButton('Run', self)
         self.load_button = QPushButton('Load Program', self)
 
         self.init_text_editor()
@@ -35,6 +37,7 @@ class MainWindow(QMainWindow):
         self.init_issue_slot_labels()
         self.init_add_sub_reservation_station_labels()
         self.init_mul_div_reservation_station_labels()
+        self.init_load_store_reservation_station_labels()
         self.init_buttons()
 
         self.statusBar().showMessage('Status bar')
@@ -54,7 +57,7 @@ class MainWindow(QMainWindow):
         self.text_editor_status_label.setStyleSheet("background-color: green;")
 
     def init_timing_table(self):
-        self.timing_table.resize(900, 400)
+        self.timing_table.resize(900, 370)
         self.timing_table.move(700, 10)
         self.timing_table.setRowCount(50)
         self.timing_table.setColumnCount(200)
@@ -91,7 +94,7 @@ class MainWindow(QMainWindow):
     def init_add_sub_reservation_station_labels(self):
         for i in range(len(self.cpu.add_sub_reservation_stations)):
             self.add_sub_reservation_station_labels.append(QLabel("", self))
-            self.add_sub_reservation_station_labels[i].move(100, 410 + i * 30)
+            self.add_sub_reservation_station_labels[i].move(260, 410 + i * 30)
             self.add_sub_reservation_station_labels[i].setFont(QFont('Consolas', 14))
             self.add_sub_reservation_station_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
             self.add_sub_reservation_station_labels[i].resize(220, 30)
@@ -99,10 +102,18 @@ class MainWindow(QMainWindow):
     def init_mul_div_reservation_station_labels(self):
         for i in range(len(self.cpu.mul_div_reservation_stations)):
             self.mul_div_reservation_station_labels.append(QLabel("", self))
-            self.mul_div_reservation_station_labels[i].move(400, 410 + i * 30)
+            self.mul_div_reservation_station_labels[i].move(500, 410 + i * 30)
             self.mul_div_reservation_station_labels[i].setFont(QFont('Consolas', 14))
             self.mul_div_reservation_station_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
             self.mul_div_reservation_station_labels[i].resize(220, 30)
+
+    def init_load_store_reservation_station_labels(self):
+        for i in range(len(self.cpu.load_store_reservation_stations)):
+            self.load_store_reservation_station_labels.append(QLabel("", self))
+            self.load_store_reservation_station_labels[i].move(20, 410 + i * 30)
+            self.load_store_reservation_station_labels[i].setFont(QFont('Consolas', 14))
+            self.load_store_reservation_station_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
+            self.load_store_reservation_station_labels[i].resize(220, 30)
 
     def init_buttons(self):
         self.step_button.setToolTip('Step one cycle')
@@ -110,9 +121,14 @@ class MainWindow(QMainWindow):
         self.step_button.move(300, 10)
         self.step_button.clicked.connect(self.step_button_pressed)
 
+        self.run_button.setToolTip('Run all the code')
+        self.run_button.resize(self.run_button.sizeHint())
+        self.run_button.move(300, 40)
+        self.run_button.clicked.connect(self.run_button_pressed)
+
         self.load_button.setToolTip('Load the program into the issue buffer')
         self.load_button.resize(self.step_button.sizeHint())
-        self.load_button.move(300, 40)
+        self.load_button.move(300, 70)
         self.load_button.clicked.connect(self.load_program_button_pressed)
 
     def update_text_editor_visual(self, assembly_succeeded, offending_line):
@@ -150,15 +166,24 @@ class MainWindow(QMainWindow):
                     label.setStyleSheet("background-color: lightgreen; border: 1px solid black;")
             else:
                 label.setText("")
+        for i, label in enumerate(self.load_store_reservation_station_labels):
+            label.setStyleSheet("background-color: white; border: 1px solid black;")
+            if self.cpu.load_store_reservation_stations[i].state != self.cpu.load_store_reservation_stations[i].State.FREE:
+                label.setText(self.cpu.load_store_reservation_stations[i].instruction.raw_text)
+                if self.cpu.load_store_reservation_stations[i].state == self.cpu.load_store_reservation_stations[i].State.ISSUED:
+                    label.setStyleSheet("background-color: lightgreen; border: 1px solid black;")
+            else:
+                label.setText("")
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setPen(Qt.black)
         painter.setBrush(Qt.white)
-        painter.drawLine(300+100, 330, 300+100, 380)
-        painter.drawLine(200, 380, 500, 380)
-        painter.drawLine(200, 380, 200, 420)
-        painter.drawLine(500, 380, 500, 420)
+        painter.drawLine(400, 330, 400, 380)
+        painter.drawLine(120, 380, 600, 380)
+        painter.drawLine(120, 380, 120, 420)
+        painter.drawLine(400, 380, 400, 420)
+        painter.drawLine(600, 380, 600, 420)
 
     def update_timing_table_instructions_visual(self, instructions):
         self.instruction_table = {}
@@ -170,7 +195,8 @@ class MainWindow(QMainWindow):
         self.set_timing_table_row_labels(inst_names)
 
     def update_timing_table_content_visual(self):
-        all_reservation_stations = self.cpu.add_sub_reservation_stations + self.cpu.mul_div_reservation_stations
+        all_reservation_stations = \
+            self.cpu.add_sub_reservation_stations + self.cpu.mul_div_reservation_stations + self.cpu.load_store_reservation_stations
         for rs in all_reservation_stations:
             state = ""
             if rs.state == rs.State.FREE:
@@ -181,6 +207,8 @@ class MainWindow(QMainWindow):
                 state = "E"
             elif rs.state == rs.State.WAITING:
                 state = "-"
+            elif rs.state == rs.State.MEMORY:
+                state = "M"
             elif rs.state == rs.State.ATTEMPT_WRITE:
                 state = "-"
             elif rs.state == rs.State.WRITE_BACK:
@@ -194,6 +222,10 @@ class MainWindow(QMainWindow):
         self.update_reservation_station_visual()
         self.update_instruction_queue_visual()
         self.update_timing_table_content_visual()
+
+    def run_button_pressed(self):
+        for i in range(300):
+            self.step_button_pressed()
 
     def load_program_button_pressed(self):
         raw_assembly_code = self.text_editor.toPlainText().lower()

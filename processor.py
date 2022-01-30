@@ -4,7 +4,12 @@ from instruction import Instruction
 
 INSTRUCTION_QUEUE_SLOT_NUMS = 3
 ADD_SUB_RS_NUMS = 3
-MUL_DIV_RS_NUMS = 4
+MUL_DIV_RS_NUMS = 2
+LOAD_STORE_RS_NUMS = 3
+
+ADD_SUB_LATENCY_CYCLES = 3
+MUL_DIV_LATENCY_CYCLES = 7
+LOAD_STORE_LATENCY_CYCLES = 1
 
 
 class Processor:
@@ -17,10 +22,13 @@ class Processor:
         self.instruction_queue = _InstructionQueue()
         self.add_sub_reservation_stations = []
         self.mul_div_reservation_stations = []
+        self.load_store_reservation_stations = []
         for i in range(ADD_SUB_RS_NUMS):
-            self.add_sub_reservation_stations.append(_ReservationStation(self, 3))
+            self.add_sub_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=ADD_SUB_LATENCY_CYCLES))
         for i in range(MUL_DIV_RS_NUMS):
-            self.mul_div_reservation_stations.append(_ReservationStation(self, 5))
+            self.mul_div_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=MUL_DIV_LATENCY_CYCLES))
+        for i in range(LOAD_STORE_RS_NUMS):
+            self.load_store_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=LOAD_STORE_LATENCY_CYCLES))
         self.scheduler = _Scheduler(self)
 
     def reset(self):
@@ -28,10 +36,9 @@ class Processor:
         self.cycle_count = 0
         self.instruction_queue.reset()
         self.common_data_bus.reset()
-        for i in range(ADD_SUB_RS_NUMS):
-            self.add_sub_reservation_stations[i].reset()
-        for i in range(MUL_DIV_RS_NUMS):
-            self.mul_div_reservation_stations[i].reset()
+        all_rs = self.add_sub_reservation_stations + self.mul_div_reservation_stations + self.load_store_reservation_stations
+        for rs in all_rs:
+            rs.reset()
         self.scheduler.reset()
 
     def upload_to_memory(self, instructions):
@@ -123,8 +130,24 @@ class _ReservationStation:
             if self.source1_provider == -1 and self.source2_provider == -1:
                 self.state = self.State.EXECUTING
             else:
-                self.state = self.State.WAITING
+                op1_avilable = True
+                op2_avilable = True
+                if self.source1_provider != -1:
+                    op1_avilable = False
+                    if self.cpu.common_data_bus.writing_rs_id == self.source1_provider:
+                        self.source1_provider = -1
+                        op1_avilable = True
+                if self.source2_provider != -1:
+                    op2_avilable = False
+                    if self.cpu.common_data_bus.writing_rs_id == self.source2_provider:
+                        self.source2_provider = -1
+                        op2_avilable = True
+                if op1_avilable and op2_avilable:
+                    self.state = self.State.EXECUTING
+                else:
+                    self.state = self.State.WAITING
         elif self.state == self.State.WAITING:
+            # FIXME: Repetetive code as above
             op1_avilable = True
             op2_avilable = True
             if self.source1_provider != -1:
@@ -142,6 +165,16 @@ class _ReservationStation:
         elif self.state == self.State.EXECUTING:
             self.counter += 1
             if self.counter == self.latency_in_cycles:
+                if self.instruction.operation == "fsw" or self.instruction.operation == "flw":
+                    self.state = self.State.MEMORY
+                else:
+                    self.cpu.common_data_bus.attempt_write(self)
+                    self.state = self.State.ATTEMPT_WRITE
+        elif self.state == self.State.MEMORY:
+            # FIXME: need arbitartion if multiple memory accesses coincide
+            if self.instruction.operation == "fsw":
+                self.reset()
+            else:
                 self.cpu.common_data_bus.attempt_write(self)
                 self.state = self.State.ATTEMPT_WRITE
         elif self.state == self.State.ATTEMPT_WRITE:
@@ -220,33 +253,43 @@ class _Scheduler:
         self.issue_number = 0
         self.register_stat = {"": -1}
         for i in range(32):
-            self.register_stat["f"+str(i)] = -1
+            self.register_stat["f" + str(i)] = -1
 
     def reset(self):
         self.issue_number = 0
         self.register_stat = {"": -1}
         for i in range(32):
-            self.register_stat["f"+str(i)] = -1
+            self.register_stat["f" + str(i)] = -1
 
     def handle(self, instruction: Instruction):
         issued = False
         if instruction.operation == "fadd" or instruction.operation == "fsub":
             for rs in self.cpu.add_sub_reservation_stations:
                 if rs.state == rs.State.FREE:
-                    self.__assign_to_reservation_station(rs, instruction)
+                    self.__assign_math_inst_to_reservation_station(rs, instruction)
                     issued = True
                     break
         elif instruction.operation == "fmul" or instruction.operation == "fdiv":
             for rs in self.cpu.mul_div_reservation_stations:
                 if rs.state == rs.State.FREE:
-                    self.__assign_to_reservation_station(rs, instruction)
+                    self.__assign_math_inst_to_reservation_station(rs, instruction)
                     issued = True
                     break
-        elif instruction.operation == "flw" or instruction.operation == "fsw":
-            issued = True
+        elif instruction.operation == "flw":
+            for rs in self.cpu.load_store_reservation_stations:
+                if rs.state == rs.State.FREE:
+                    self.__assign_load_inst_to_reservation_station(rs, instruction)
+                    issued = True
+                    break
+        elif instruction.operation == "fsw":
+            for rs in self.cpu.load_store_reservation_stations:
+                if rs.state == rs.State.FREE:
+                    self.__assign_store_inst_to_reservation_station(rs, instruction)
+                    issued = True
+                    break
         return issued
 
-    def __assign_to_reservation_station(self, rs, instruction):
+    def __assign_math_inst_to_reservation_station(self, rs, instruction):
         rs.instruction = instruction
         rs.state = rs.State.ISSUED
         rs.source1_provider = self.register_stat[instruction.source1]
@@ -255,8 +298,27 @@ class _Scheduler:
         rs.issue_number = self.issue_number
         self.issue_number += 1
 
+    def __assign_load_inst_to_reservation_station(self, rs, instruction):
+        rs.instruction = instruction
+        rs.state = rs.State.ISSUED
+        rs.source1_provider = -1
+        rs.source2_provider = -1
+        self.register_stat[instruction.destination] = id(rs)
+        rs.issue_number = self.issue_number
+        self.issue_number += 1
+
+    def __assign_store_inst_to_reservation_station(self, rs, instruction):
+        rs.instruction = instruction
+        rs.state = rs.State.ISSUED
+        rs.source1_provider = self.register_stat[instruction.source1]
+        rs.source2_provider = -1
+        rs.issue_number = self.issue_number
+        self.issue_number += 1
+
     def tick(self):
         for rs in self.cpu.add_sub_reservation_stations:
             rs.tick()
         for rs in self.cpu.mul_div_reservation_stations:
+            rs.tick()
+        for rs in self.cpu.load_store_reservation_stations:
             rs.tick()
