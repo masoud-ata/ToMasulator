@@ -5,7 +5,7 @@ from instruction import Instruction
 INSTRUCTION_QUEUE_SLOT_NUMS = 3
 ADD_SUB_RS_NUMS = 3
 MUL_DIV_RS_NUMS = 2
-LOAD_STORE_RS_NUMS = 3
+LOAD_STORE_RS_NUMS = 4
 
 ADD_SUB_LATENCY_CYCLES = 3
 MUL_DIV_LATENCY_CYCLES = 7
@@ -18,6 +18,7 @@ class Processor:
         self.instruction_memory = InstructionMemory()
         self.instruction_pointer = 0
         self.cycle_count = 0
+        self.data_memory = _DataMemory(self)
         self.common_data_bus = _CommonDataBus(self)
         self.instruction_queue = _InstructionQueue()
         self.add_sub_reservation_stations = []
@@ -35,6 +36,7 @@ class Processor:
         self.instruction_pointer = 0
         self.cycle_count = 0
         self.instruction_queue.reset()
+        self.data_memory.reset()
         self.common_data_bus.reset()
         all_rs = self.add_sub_reservation_stations + self.mul_div_reservation_stations + self.load_store_reservation_stations
         for rs in all_rs:
@@ -56,6 +58,7 @@ class Processor:
                 if issued:
                     self.issue_instruction()
             self.common_data_bus.arbitrate_writes()
+            self.data_memory.arbitrate_accesses()
 
     def issue_instruction(self):
         self.instruction_queue.consume()
@@ -102,8 +105,9 @@ class _ReservationStation:
         WAITING = 2
         EXECUTING = 3
         MEMORY = 4
-        ATTEMPT_WRITE = 5
-        WRITE_BACK = 6
+        ATTEMPT_MEMORY_ACCESS = 5
+        ATTEMPT_WRITE = 6
+        WRITE_BACK = 7
 
     def __init__(self, cpu: Processor, latency_in_cycles):
         self.cpu = cpu
@@ -115,6 +119,7 @@ class _ReservationStation:
         self.counter = 0
         self.issue_number = 0
         self.write_succeeded = False
+        self.memory_access_succeeded = False
 
     def reset(self):
         self.state = self.State.FREE
@@ -124,6 +129,7 @@ class _ReservationStation:
         self.counter = 0
         self.issue_number = 0
         self.write_succeeded = False
+        self.memory_access_succeeded = False
 
     def tick(self):
         if self.state == self.State.ISSUED:
@@ -166,12 +172,15 @@ class _ReservationStation:
             self.counter += 1
             if self.counter == self.latency_in_cycles:
                 if self.instruction.operation == "fsw" or self.instruction.operation == "flw":
-                    self.state = self.State.MEMORY
+                    self.cpu.data_memory.attempt_access(self)
+                    self.state = self.State.ATTEMPT_MEMORY_ACCESS
                 else:
                     self.cpu.common_data_bus.attempt_write(self)
                     self.state = self.State.ATTEMPT_WRITE
+        elif self.state == self.State.ATTEMPT_MEMORY_ACCESS:
+            if self.memory_access_succeeded:
+                self.state = self.State.MEMORY
         elif self.state == self.State.MEMORY:
-            # FIXME: need arbitartion if multiple memory accesses coincide
             if self.instruction.operation == "fsw":
                 self.reset()
             else:
@@ -245,6 +254,29 @@ class _CommonDataBus:
             # FIXME
             if self.cpu.scheduler.register_stat[sorted_pending_writes[0][2].instruction.destination] == sorted_pending_writes[0][0]:
                 self.cpu.scheduler.register_stat[sorted_pending_writes[0][2].instruction.destination] = -1
+
+
+class _DataMemory:
+    def __init__(self, cpu: Processor):
+        self.cpu = cpu
+        self.pending_accesses = []
+        self.requesting_rs_id = 0
+
+    def reset(self):
+        self.pending_accesses = []
+        self.requesting_rs_id = 0
+
+    def attempt_access(self, rs: _ReservationStation):
+        self.pending_accesses.append((id(rs), rs.issue_number, rs))
+
+    def arbitrate_accesses(self):
+        self.requesting_rs_id = 0
+        if len(self.pending_accesses) > 0:
+            sorted_pending_accesses = sorted(self.pending_accesses, key=lambda tup: tup[1])
+            self.requesting_rs_id = sorted_pending_accesses[0][0]
+            sorted_pending_accesses[0][2].memory_access_succeeded = True
+            sorted_pending_accesses[0][2].state = sorted_pending_accesses[0][2].State.MEMORY
+            self.pending_accesses.remove(sorted_pending_accesses[0])
 
 
 class _Scheduler:

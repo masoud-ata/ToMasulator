@@ -67,7 +67,6 @@ class MainWindow(QMainWindow):
             headers.append(str(i + 1))
         self.timing_table.setHorizontalHeaderLabels(headers)
         self.timing_table.setVerticalHeaderLabels(headers)
-        self.timing_table.setColumnWidth(1, 10)
 
     def clear_timing_table(self):
         for row in range(50):
@@ -119,16 +118,19 @@ class MainWindow(QMainWindow):
         self.step_button.setToolTip('Step one cycle')
         self.step_button.resize(self.step_button.sizeHint())
         self.step_button.move(300, 10)
+        self.step_button.adjustSize()
         self.step_button.clicked.connect(self.step_button_pressed)
 
         self.run_button.setToolTip('Run all the code')
         self.run_button.resize(self.run_button.sizeHint())
         self.run_button.move(300, 40)
+        self.run_button.adjustSize()
         self.run_button.clicked.connect(self.run_button_pressed)
 
         self.load_button.setToolTip('Load the program into the issue buffer')
         self.load_button.resize(self.step_button.sizeHint())
         self.load_button.move(300, 70)
+        self.load_button.adjustSize()
         self.load_button.clicked.connect(self.load_program_button_pressed)
 
     def update_text_editor_visual(self, assembly_succeeded, offending_line):
@@ -206,6 +208,8 @@ class MainWindow(QMainWindow):
             elif rs.state == rs.State.EXECUTING:
                 state = "E"
             elif rs.state == rs.State.WAITING:
+                state = "-"
+            elif rs.state == rs.State.ATTEMPT_MEMORY_ACCESS:
                 state = "-"
             elif rs.state == rs.State.MEMORY:
                 state = "M"
