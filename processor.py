@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import List
 
 from instruction import Instruction
 
@@ -57,8 +58,7 @@ class Processor:
                 issued = self.scheduler.handle(instruction)
                 if issued:
                     self.issue_instruction()
-            self.common_data_bus.arbitrate_writes()
-            self.data_memory.arbitrate_accesses()
+            self.scheduler.arbitrate()
 
     def issue_instruction(self):
         self.instruction_queue.consume()
@@ -233,65 +233,69 @@ class _InstructionQueue:
 class _CommonDataBus:
     def __init__(self, cpu: Processor):
         self.cpu = cpu
-        self.pending_writes = []
+        self.pending_writes: List[_ReservationStation] = []
         self.writing_rs_id = 0
+        self.writing_rs = None
 
     def reset(self):
-        self.pending_writes = []
+        self.pending_writes: List[_ReservationStation] = []
         self.writing_rs_id = 0
 
     def attempt_write(self, rs: _ReservationStation):
-        self.pending_writes.append((id(rs), rs.issue_number, rs))
+        self.pending_writes.append(rs)
 
     def arbitrate_writes(self):
         self.writing_rs_id = 0
+        self.writing_rs = None
         if len(self.pending_writes) > 0:
-            sorted_pending_writes = sorted(self.pending_writes, key=lambda tup: tup[1])
-            self.writing_rs_id = sorted_pending_writes[0][0]
-            sorted_pending_writes[0][2].write_succeeded = True
-            sorted_pending_writes[0][2].state = sorted_pending_writes[0][2].State.WRITE_BACK
-            self.pending_writes.remove(sorted_pending_writes[0])
-            # FIXME
-            if self.cpu.scheduler.register_stat[sorted_pending_writes[0][2].instruction.destination] == sorted_pending_writes[0][0]:
-                self.cpu.scheduler.register_stat[sorted_pending_writes[0][2].instruction.destination] = -1
+            sorted_pending_writes = sorted(self.pending_writes, key=lambda x: x.issue_number)
+            writing_rs = sorted_pending_writes[0]
+            self.writing_rs_id = id(writing_rs)
+            self.writing_rs = writing_rs
+            writing_rs.write_succeeded = True
+            writing_rs.state = writing_rs.State.WRITE_BACK
+            self.pending_writes.remove(writing_rs)
 
 
 class _DataMemory:
     def __init__(self, cpu: Processor):
         self.cpu = cpu
-        self.pending_accesses = []
+        self.pending_accesses: List[_ReservationStation] = []
         self.requesting_rs_id = 0
 
     def reset(self):
-        self.pending_accesses = []
+        self.pending_accesses: List[_ReservationStation] = []
         self.requesting_rs_id = 0
 
     def attempt_access(self, rs: _ReservationStation):
-        self.pending_accesses.append((id(rs), rs.issue_number, rs))
+        self.pending_accesses.append(rs)
 
     def arbitrate_accesses(self):
         self.requesting_rs_id = 0
         if len(self.pending_accesses) > 0:
-            sorted_pending_accesses = sorted(self.pending_accesses, key=lambda tup: tup[1])
-            self.requesting_rs_id = sorted_pending_accesses[0][0]
-            sorted_pending_accesses[0][2].memory_access_succeeded = True
-            sorted_pending_accesses[0][2].state = sorted_pending_accesses[0][2].State.MEMORY
-            self.pending_accesses.remove(sorted_pending_accesses[0])
+            sorted_pending_accesses = sorted(self.pending_accesses, key=lambda x: x.issue_number)
+            requesting_rs = sorted_pending_accesses[0]
+            self.requesting_rs_id = id(requesting_rs)
+            requesting_rs.write_succeeded = True
+            requesting_rs.state = requesting_rs.State.MEMORY
+            self.pending_accesses.remove(requesting_rs)
 
 
 class _Scheduler:
+    REGISTER_FILE = -1
+
     def __init__(self, cpu: Processor):
         self.cpu = cpu
         self.issue_number = 0
-        self.register_stat = {"": -1}
+        self.register_stat = {"": _Scheduler.REGISTER_FILE}
         for i in range(32):
-            self.register_stat["f" + str(i)] = -1
+            self.register_stat["f" + str(i)] = _Scheduler.REGISTER_FILE
 
     def reset(self):
         self.issue_number = 0
-        self.register_stat = {"": -1}
+        self.register_stat = {"": _Scheduler.REGISTER_FILE}
         for i in range(32):
-            self.register_stat["f" + str(i)] = -1
+            self.register_stat["f" + str(i)] = _Scheduler.REGISTER_FILE
 
     def handle(self, instruction: Instruction):
         issued = False
@@ -333,8 +337,8 @@ class _Scheduler:
     def __assign_load_inst_to_reservation_station(self, rs, instruction):
         rs.instruction = instruction
         rs.state = rs.State.ISSUED
-        rs.source1_provider = -1
-        rs.source2_provider = -1
+        rs.source1_provider = _Scheduler.REGISTER_FILE
+        rs.source2_provider = _Scheduler.REGISTER_FILE
         self.register_stat[instruction.destination] = id(rs)
         rs.issue_number = self.issue_number
         self.issue_number += 1
@@ -343,9 +347,16 @@ class _Scheduler:
         rs.instruction = instruction
         rs.state = rs.State.ISSUED
         rs.source1_provider = self.register_stat[instruction.source1]
-        rs.source2_provider = -1
+        rs.source2_provider = _Scheduler.REGISTER_FILE
         rs.issue_number = self.issue_number
         self.issue_number += 1
+
+    def update_register_stat(self):
+        writing_rs = self.cpu.common_data_bus.writing_rs
+        if writing_rs is not None:
+            this_rs_is_the_provider = self.cpu.scheduler.register_stat[writing_rs.instruction.destination] == id(writing_rs)
+            if this_rs_is_the_provider:
+                self.cpu.scheduler.register_stat[writing_rs.instruction.destination] = _Scheduler.REGISTER_FILE
 
     def tick(self):
         for rs in self.cpu.add_sub_reservation_stations:
@@ -354,3 +365,8 @@ class _Scheduler:
             rs.tick()
         for rs in self.cpu.load_store_reservation_stations:
             rs.tick()
+
+    def arbitrate(self):
+        self.cpu.common_data_bus.arbitrate_writes()
+        self.update_register_stat()
+        self.cpu.data_memory.arbitrate_accesses()

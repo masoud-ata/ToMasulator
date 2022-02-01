@@ -83,14 +83,24 @@ class MainWindow(QMainWindow):
         self.timing_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
     def init_issue_slot_labels(self):
+        #FIXME 3
         for i in range(3):
             self.issue_slot_labels.append(QLabel("", self))
             self.issue_slot_labels[i].move(300, 310 - i * 30)
             self.issue_slot_labels[i].setFont(QFont('Consolas', 14))
             self.issue_slot_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
             self.issue_slot_labels[i].resize(220, 30)
+        issue_slot_name_label = QLabel('Instruction queue', self)
+        issue_slot_name_label.setFont(QFont('sans-serif', 12))
+        issue_slot_name_label.adjustSize()
+        # FIXME 3
+        issue_slot_name_label.move(350, 310 - 3*30)
 
     def init_add_sub_reservation_station_labels(self):
+        issue_slot_name_label = QLabel('Add/Sub RS', self)
+        issue_slot_name_label.setFont(QFont('sans-serif', 12))
+        issue_slot_name_label.adjustSize()
+        issue_slot_name_label.move(260, 390)
         for i in range(len(self.cpu.add_sub_reservation_stations)):
             self.add_sub_reservation_station_labels.append(QLabel("", self))
             self.add_sub_reservation_station_labels[i].move(260, 410 + i * 30)
@@ -99,6 +109,10 @@ class MainWindow(QMainWindow):
             self.add_sub_reservation_station_labels[i].resize(220, 30)
 
     def init_mul_div_reservation_station_labels(self):
+        issue_slot_name_label = QLabel('Mul/Div RS', self)
+        issue_slot_name_label.setFont(QFont('Sans-serif', 12))
+        issue_slot_name_label.adjustSize()
+        issue_slot_name_label.move(500, 390)
         for i in range(len(self.cpu.mul_div_reservation_stations)):
             self.mul_div_reservation_station_labels.append(QLabel("", self))
             self.mul_div_reservation_station_labels[i].move(500, 410 + i * 30)
@@ -107,6 +121,10 @@ class MainWindow(QMainWindow):
             self.mul_div_reservation_station_labels[i].resize(220, 30)
 
     def init_load_store_reservation_station_labels(self):
+        issue_slot_name_label = QLabel('Load/Store RS', self)
+        issue_slot_name_label.setFont(QFont('Sans-serif', 12))
+        issue_slot_name_label.adjustSize()
+        issue_slot_name_label.move(20, 390)
         for i in range(len(self.cpu.load_store_reservation_stations)):
             self.load_store_reservation_station_labels.append(QLabel("", self))
             self.load_store_reservation_station_labels[i].move(20, 410 + i * 30)
