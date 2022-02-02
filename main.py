@@ -1,5 +1,6 @@
 import sys
-from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit)
+from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow, QTableWidget,
+                             QTableWidgetItem, QHeaderView, QLineEdit, QGroupBox, QGridLayout)
 from PyQt5.QtGui import QFont, QPainter
 from PyQt5.QtCore import Qt
 
@@ -32,15 +33,15 @@ class MainWindow(QMainWindow):
         self.text_editor = QCodeEditor(self)
         self.timing_table = QTableWidget(self)
         self.text_editor_status_label = QLabel('Pass', self)
-        self.step_button = QPushButton('Step', self)
-        self.run_button = QPushButton('Run', self)
-        self.load_button = QPushButton('Load Program', self)
-        self.add_sub_num_cycles_textbox = QLineEdit(str(ADD_SUB_LATENCY_CYCLES), self)
-        self.mul_div_num_cycles_textbox = QLineEdit(str(MUL_DIV_LATENCY_CYCLES), self)
-        self.load_store_num_cycles_textbox = QLineEdit(str(LOAD_STORE_LATENCY_CYCLES), self)
-        self.load_store_num_cycles_label = QLabel('No. Cycles for Load/Store', self)
-        self.add_sub_num_cycles_label = QLabel('No. Cycles for Add/Sub', self)
-        self.mul_div_num_cycles_label = QLabel('No. Cycles for Mul/Div', self)
+        self.step_button = QPushButton('Step')
+        self.run_button = QPushButton('Run')
+        self.load_button = QPushButton('Load / Reset')
+        self.add_sub_num_cycles_textbox = QLineEdit(str(ADD_SUB_LATENCY_CYCLES))
+        self.mul_div_num_cycles_textbox = QLineEdit(str(MUL_DIV_LATENCY_CYCLES))
+        self.load_store_num_cycles_textbox = QLineEdit(str(LOAD_STORE_LATENCY_CYCLES))
+        self.load_store_num_cycles_label = QLabel('No. Cycles for Load/Store')
+        self.add_sub_num_cycles_label = QLabel('No. Cycles for Add/Sub')
+        self.mul_div_num_cycles_label = QLabel('No. Cycles for Mul/Div')
 
         self.init_text_editor()
         self.init_timing_table()
@@ -49,7 +50,7 @@ class MainWindow(QMainWindow):
         self.init_mul_div_reservation_station_labels()
         self.init_load_store_reservation_station_labels()
         self.init_buttons()
-        self.init_textboxes()
+        self.init_cycles_boxes()
 
         self.statusBar().showMessage('Status bar')
         self.setGeometry(300, 300, 1610, 550)
@@ -102,14 +103,14 @@ class MainWindow(QMainWindow):
             self.issue_slot_labels[i].setStyleSheet("background-color: white;border: 1px solid black;")
             self.issue_slot_labels[i].resize(220, 30)
         issue_slot_name_label = QLabel('Instruction queue', self)
-        issue_slot_name_label.setFont(QFont('sans-serif', 12))
+        issue_slot_name_label.setFont(QFont('Arial', 12))
         issue_slot_name_label.adjustSize()
         # FIXME 3
         issue_slot_name_label.move(350, 310 - 3*30)
 
     def init_add_sub_reservation_station_labels(self):
         issue_slot_name_label = QLabel('Add/Sub RS', self)
-        issue_slot_name_label.setFont(QFont('sans-serif', 12))
+        issue_slot_name_label.setFont(QFont('Arial', 12))
         issue_slot_name_label.adjustSize()
         issue_slot_name_label.move(260, 390)
         for i in range(len(self.cpu.add_sub_reservation_stations)):
@@ -145,35 +146,39 @@ class MainWindow(QMainWindow):
 
     def init_buttons(self):
         self.load_button.setToolTip('Load the program into the issue buffer')
-        self.load_button.move(300, 10)
-        self.load_button.adjustSize()
+        self.load_button.setFont(QFont('Arial', 10))
         self.load_button.clicked.connect(self.load_program_button_pressed)
-
         self.step_button.setToolTip('Step one cycle')
-        self.step_button.move(300, 40)
-        self.step_button.adjustSize()
+        self.step_button.setFont(QFont('Arial', 10))
         self.step_button.clicked.connect(self.step_button_pressed)
-
         self.run_button.setToolTip('Run all the code')
-        self.run_button.move(300, 70)
-        self.run_button.adjustSize()
+        self.run_button.setFont(QFont('Arial', 10))
         self.run_button.clicked.connect(self.run_button_pressed)
 
-    def init_textboxes(self):
-        self.load_store_num_cycles_textbox.move(550, 10)
-        self.load_store_num_cycles_textbox.resize(50, 20)
-        self.load_store_num_cycles_label.move(400, 15)
-        self.load_store_num_cycles_label.adjustSize()
+        buttons_group = QGroupBox("", self)
+        grid = QGridLayout()
+        grid.addWidget(self.load_button, 0, 0)
+        grid.addWidget(self.step_button, 1, 0)
+        grid.addWidget(self.run_button, 2, 0)
+        buttons_group.setLayout(grid)
+        buttons_group.move(280, 10)
+        buttons_group.adjustSize()
 
-        self.add_sub_num_cycles_textbox.move(550, 35)
-        self.add_sub_num_cycles_textbox.resize(50, 20)
-        self.add_sub_num_cycles_label.move(400, 40)
-        self.add_sub_num_cycles_label.adjustSize()
-
-        self.mul_div_num_cycles_textbox.move(550, 60)
-        self.mul_div_num_cycles_textbox.resize(50, 20)
-        self.mul_div_num_cycles_label.move(400, 65)
-        self.mul_div_num_cycles_label.adjustSize()
+    def init_cycles_boxes(self):
+        num_cycles_group = QGroupBox("", self)
+        grid = QGridLayout()
+        self.load_store_num_cycles_label.setFont(QFont('Arial', 10))
+        self.add_sub_num_cycles_label.setFont(QFont('Arial', 10))
+        self.mul_div_num_cycles_label.setFont(QFont('Arial', 10))
+        grid.addWidget(self.load_store_num_cycles_label, 0, 0)
+        grid.addWidget(self.add_sub_num_cycles_label, 1, 0)
+        grid.addWidget(self.mul_div_num_cycles_label, 2, 0)
+        grid.addWidget(self.load_store_num_cycles_textbox, 0, 1)
+        grid.addWidget(self.add_sub_num_cycles_textbox, 1, 1)
+        grid.addWidget(self.mul_div_num_cycles_textbox, 2, 1)
+        num_cycles_group.setLayout(grid)
+        num_cycles_group.move(400, 10)
+        num_cycles_group.resize(250, 100)
 
     def update_text_editor_visual(self, assembly_succeeded, offending_line):
         if assembly_succeeded:
@@ -313,6 +318,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    # app.setStyle("Fusion")
     ex = MainWindow()
     sys.exit(app.exec_())
 
