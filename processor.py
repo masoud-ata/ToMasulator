@@ -8,13 +8,13 @@ ADD_SUB_RS_NUMS = 3
 MUL_DIV_RS_NUMS = 2
 LOAD_STORE_RS_NUMS = 4
 
-ADD_SUB_LATENCY_CYCLES = 3
-MUL_DIV_LATENCY_CYCLES = 7
-LOAD_STORE_LATENCY_CYCLES = 1
-
 
 class Processor:
-    def __init__(self):
+    def __init__(self, add_sub_latency_cycles, mul_div_latency_cycles, load_store_latency_cycles):
+        self.add_sub_latency_cycles = add_sub_latency_cycles
+        self.mul_div_latency_cycles = mul_div_latency_cycles
+        self. load_store_latency_cycles = load_store_latency_cycles
+
         self.locked_and_loaded = False
         self.instruction_memory = InstructionMemory()
         self.instruction_pointer = 0
@@ -26,11 +26,11 @@ class Processor:
         self.mul_div_reservation_stations = []
         self.load_store_reservation_stations = []
         for i in range(ADD_SUB_RS_NUMS):
-            self.add_sub_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=ADD_SUB_LATENCY_CYCLES))
+            self.add_sub_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=add_sub_latency_cycles))
         for i in range(MUL_DIV_RS_NUMS):
-            self.mul_div_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=MUL_DIV_LATENCY_CYCLES))
+            self.mul_div_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=mul_div_latency_cycles))
         for i in range(LOAD_STORE_RS_NUMS):
-            self.load_store_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=LOAD_STORE_LATENCY_CYCLES))
+            self.load_store_reservation_stations.append(_ReservationStation(cpu=self, latency_in_cycles=load_store_latency_cycles))
         self.scheduler = _Scheduler(self)
 
     def reset(self):
@@ -43,6 +43,17 @@ class Processor:
         for rs in all_rs:
             rs.reset()
         self.scheduler.reset()
+
+    def set_latency_cycles(self, add_sub_latency_cycles, mul_div_latency_cycles, load_store_latency_cycles):
+        self.add_sub_latency_cycles = add_sub_latency_cycles
+        self.mul_div_latency_cycles = mul_div_latency_cycles
+        self. load_store_latency_cycles = load_store_latency_cycles
+        for rs in self.add_sub_reservation_stations:
+            rs.latency_in_cycles = add_sub_latency_cycles
+        for rs in self.mul_div_reservation_stations:
+            rs.latency_in_cycles = mul_div_latency_cycles
+        for rs in self.load_store_reservation_stations:
+            rs.latency_in_cycles = load_store_latency_cycles
 
     def upload_to_memory(self, instructions):
         self.locked_and_loaded = True

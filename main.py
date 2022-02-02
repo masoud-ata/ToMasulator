@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QHeaderView)
+from PyQt5.QtWidgets import (QPushButton, QApplication, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit)
 from PyQt5.QtGui import QFont, QPainter
 from PyQt5.QtCore import Qt
 
@@ -12,12 +12,16 @@ DEFAULT_PROGRAM = \
     "fsw  f1, 0(x1) \nfadd f1, f2, f3 \nfsub f3, f4, f1\nfmul f5, f10, f10\n" \
     "fadd f8, f2, f3 \nfsub f9, f4, f6\nfmul f10, f10, f1\n"
 
+ADD_SUB_LATENCY_CYCLES = 3
+MUL_DIV_LATENCY_CYCLES = 7
+LOAD_STORE_LATENCY_CYCLES = 1
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.cpu = Processor()
+        self.cpu = Processor(ADD_SUB_LATENCY_CYCLES, MUL_DIV_LATENCY_CYCLES, LOAD_STORE_LATENCY_CYCLES)
 
         self.instruction_table = {}
 
@@ -31,6 +35,12 @@ class MainWindow(QMainWindow):
         self.step_button = QPushButton('Step', self)
         self.run_button = QPushButton('Run', self)
         self.load_button = QPushButton('Load Program', self)
+        self.add_sub_num_cycles_textbox = QLineEdit(str(ADD_SUB_LATENCY_CYCLES), self)
+        self.mul_div_num_cycles_textbox = QLineEdit(str(MUL_DIV_LATENCY_CYCLES), self)
+        self.load_store_num_cycles_textbox = QLineEdit(str(LOAD_STORE_LATENCY_CYCLES), self)
+        self.load_store_num_cycles_label = QLabel('No. Cycles for Load/Store', self)
+        self.add_sub_num_cycles_label = QLabel('No. Cycles for Add/Sub', self)
+        self.mul_div_num_cycles_label = QLabel('No. Cycles for Mul/Div', self)
 
         self.init_text_editor()
         self.init_timing_table()
@@ -39,6 +49,7 @@ class MainWindow(QMainWindow):
         self.init_mul_div_reservation_station_labels()
         self.init_load_store_reservation_station_labels()
         self.init_buttons()
+        self.init_textboxes()
 
         self.statusBar().showMessage('Status bar')
         self.setGeometry(300, 300, 1610, 550)
@@ -83,7 +94,7 @@ class MainWindow(QMainWindow):
         self.timing_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
     def init_issue_slot_labels(self):
-        #FIXME 3
+        # FIXME: constant 3
         for i in range(3):
             self.issue_slot_labels.append(QLabel("", self))
             self.issue_slot_labels[i].move(300, 310 - i * 30)
@@ -133,23 +144,36 @@ class MainWindow(QMainWindow):
             self.load_store_reservation_station_labels[i].resize(220, 30)
 
     def init_buttons(self):
+        self.load_button.setToolTip('Load the program into the issue buffer')
+        self.load_button.move(300, 10)
+        self.load_button.adjustSize()
+        self.load_button.clicked.connect(self.load_program_button_pressed)
+
         self.step_button.setToolTip('Step one cycle')
-        self.step_button.resize(self.step_button.sizeHint())
-        self.step_button.move(300, 10)
+        self.step_button.move(300, 40)
         self.step_button.adjustSize()
         self.step_button.clicked.connect(self.step_button_pressed)
 
         self.run_button.setToolTip('Run all the code')
-        self.run_button.resize(self.run_button.sizeHint())
-        self.run_button.move(300, 40)
+        self.run_button.move(300, 70)
         self.run_button.adjustSize()
         self.run_button.clicked.connect(self.run_button_pressed)
 
-        self.load_button.setToolTip('Load the program into the issue buffer')
-        self.load_button.resize(self.step_button.sizeHint())
-        self.load_button.move(300, 70)
-        self.load_button.adjustSize()
-        self.load_button.clicked.connect(self.load_program_button_pressed)
+    def init_textboxes(self):
+        self.load_store_num_cycles_textbox.move(550, 10)
+        self.load_store_num_cycles_textbox.resize(50, 20)
+        self.load_store_num_cycles_label.move(400, 15)
+        self.load_store_num_cycles_label.adjustSize()
+
+        self.add_sub_num_cycles_textbox.move(550, 35)
+        self.add_sub_num_cycles_textbox.resize(50, 20)
+        self.add_sub_num_cycles_label.move(400, 40)
+        self.add_sub_num_cycles_label.adjustSize()
+
+        self.mul_div_num_cycles_textbox.move(550, 60)
+        self.mul_div_num_cycles_textbox.resize(50, 20)
+        self.mul_div_num_cycles_label.move(400, 65)
+        self.mul_div_num_cycles_label.adjustSize()
 
     def update_text_editor_visual(self, assembly_succeeded, offending_line):
         if assembly_succeeded:
@@ -253,12 +277,38 @@ class MainWindow(QMainWindow):
         raw_assembly_code = self.text_editor.toPlainText().lower()
         success, offending_line, instructions = assemble(raw_assembly_code)
         if success:
+            self.set_latency_cycles()
             self.cpu.reset()
             self.cpu.upload_to_memory(instructions)
             self.update_instruction_queue_visual()
             self.update_timing_table_instructions_visual(instructions)
         self.update_text_editor_visual(success, offending_line)
         self.update_reservation_station_visual()
+
+    def set_latency_cycles(self):
+        add_sub_num_cycles = self.cpu.add_sub_latency_cycles
+        mul_div_num_cycles = self.cpu.mul_div_latency_cycles
+        load_store_num_cycles = self.cpu.load_store_latency_cycles
+        try:
+            num_cycles = int(self.add_sub_num_cycles_textbox.text())
+            if num_cycles > 0:
+                add_sub_num_cycles = num_cycles
+        except ValueError:
+            pass
+        try:
+            num_cycles = int(self.mul_div_num_cycles_textbox.text())
+            if num_cycles > 0:
+                mul_div_num_cycles = num_cycles
+        except ValueError:
+            pass
+        try:
+            num_cycles = int(self.load_store_num_cycles_textbox.text())
+            if num_cycles > 0:
+                load_store_num_cycles = num_cycles
+        except ValueError:
+            pass
+
+        self.cpu.set_latency_cycles(add_sub_num_cycles, mul_div_num_cycles, load_store_num_cycles)
 
 
 def main():

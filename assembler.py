@@ -1,11 +1,13 @@
 import re
+from typing import List
+
 from instruction import Instruction
 
 
 def assemble(raw_code=""):
     success = True
     offending_line = 0
-    instructions = []
+    instructions: List[Instruction] = []
 
     lines = raw_code.split("\n")
     for line_num, line in enumerate(lines):
