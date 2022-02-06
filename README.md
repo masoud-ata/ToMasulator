@@ -17,5 +17,5 @@ Below is an image of the simulator's window showing the editor, the instruction 
 
 There are 3 buttons allwoing to load the assembly program, step through the code, and execute the code fully, respectively.
 
-![](images/sample_window.png)
+![](images/sample_window.gif)
 
