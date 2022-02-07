@@ -9,6 +9,9 @@ class UiSettings:
     LOAD_BUTTON_TOOLTIP = 'Load the program into the instruction queue / reset the processor'
     STEP_BUTTON_TOOLTIP = 'Step one cycle'
     RUN_BUTTON_TOOLTIP = 'Run all the code to the end'
+    SCHEDULER_COMBO_ITEM_TOMASULO = 'Tomasulo'
+    SCHEDULER_COMBO_ITEM_SCOREBOARD = 'Scoreboard'
+    SCHEDULER_TITLE = 'Algorithm:'
     LOAD_STORE_CYCLES_NUM_TITLE = 'No. Cycles for Load/Store'
     ADD_SUB_CYCLES_NUM_TITLE = 'No. Cycles for Add/Sub'
     MUL_DIV_CYCLES_NUM_TITLE = 'No. Cycles for Mul/Div'
@@ -57,6 +60,8 @@ class UiSettings:
     MUL_DIV_RS_TITLE_POS = QPoint(500, RS_TITLE_POS_Y)
     MUL_DIV_RS_SLOT_POS = QPoint(500, RS_SLOT_POS_Y)
     BUTTONS_POS = QPoint(280, TOP_POS_Y)
+    SCHEDULER_TITLE_POS = QPoint(290, 130)
+    SCHEDULER_COMBO_POS = QPoint(290, 150)
     TEXT_BOXES_MAX_SIZE = QSize(30, 30)
     NUM_CYCLES_TEXTBOX_POS = QPoint(400, TOP_POS_Y)
     NUM_CYCLES_TEXTBOX_SIZE = QSize(220, 80)

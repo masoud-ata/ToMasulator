@@ -8,6 +8,7 @@ class Controller:
     def __init__(self):
         self._cpu = Processor()
         self._ui = MainWindow(pos_x=300, pos_y=300, width=1610, height=600, title='ToMasulator', controller=self)
+        self._ui.load_reset()
 
     def tick(self):
         self._cpu.tick()
@@ -33,14 +34,14 @@ class Controller:
     def get_num_cycles_mul_div(self) -> int:
         return self._cpu.num_cycles_mul_div
 
-    def get_num_rerevation_stations_load_store(self) -> int:
-        return self._cpu.num_rerevations_station_load_store
+    def get_num_reservation_stations_load_store(self) -> int:
+        return self._cpu.num_reservation_stations_load_store
 
-    def get_num_rerevation_stations_add_sub(self) -> int:
-        return self._cpu.num_rerevation_stations_add_sub
+    def get_num_reservation_stations_add_sub(self) -> int:
+        return self._cpu.num_reservation_stations_add_sub
 
-    def get_num_rerevation_stations_mul_div(self) -> int:
-        return self._cpu.get_num_rerevation_stations_mul_div
+    def get_num_reservation_stations_mul_div(self) -> int:
+        return self._cpu.num_reservation_stations_mul_div
 
     def set_num_cycles(self, num_cycles_load_store, num_cycles_add_sub, num_cycles_mul_div) -> None:
         self._cpu.set_latency_cycles(num_cycles_load_store, num_cycles_add_sub, num_cycles_mul_div)
@@ -78,5 +79,8 @@ class Controller:
     def get_reservation_stations_instruction_states(self) -> List:
         return self._cpu.get_reservation_stations_instruction_states()
 
-    def set_reservation_station_sizes(self, load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums):
+    def set_reservation_station_sizes(self, load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums) -> None:
         self._cpu.set_reservation_station_sizes(load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums)
+
+    def set_scheduling_algorithm(self, algorithm) -> None:
+        self._cpu.set_scheduling_algorithm(algorithm)

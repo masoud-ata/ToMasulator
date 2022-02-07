@@ -1,7 +1,7 @@
 from typing import List
 
 from PyQt5.QtWidgets import (QPushButton, QLabel, QMainWindow, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QLineEdit, QGroupBox, QFrame, QVBoxLayout, QHBoxLayout)
+                             QHeaderView, QLineEdit, QGroupBox, QFrame, QVBoxLayout, QHBoxLayout, QComboBox)
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QPoint
 
@@ -32,13 +32,16 @@ class MainWindow(QMainWindow):
         self.add_sub_reservation_station_labels: List[QLabel] = []
         self.mul_div_reservation_station_labels: List[QLabel] = []
         self.load_store_reservation_station_labels: List[QLabel] = []
-        self.code_editor_status_label = QLabel('Pass', self.main_frame)
+        self.code_editor_status_label = QLabel(self.main_frame)
         self.code_editor = QCodeEditor(self.main_frame)
         self.timing_table = QTableWidget(self.main_frame)
 
         self.load_button = QPushButton(UiSettings.LOAD_BUTTON_TITLE)
         self.step_button = QPushButton(UiSettings.STEP_BUTTON_TITLE)
         self.run_button = QPushButton(UiSettings.RUN_BUTTON_TITLE)
+
+        self.scheduler_selector_title_label = QLabel(UiSettings.SCHEDULER_TITLE, self.main_frame)
+        self.scheduler_selector_combo_box = QComboBox(self.main_frame)
 
         self.load_store_num_cycles_textbox = QLineEdit(str(self.controller.get_num_cycles_load_store()))
         self.add_sub_num_cycles_textbox = QLineEdit(str(self.controller.get_num_cycles_add_sub()))
@@ -47,9 +50,9 @@ class MainWindow(QMainWindow):
         self.add_sub_num_cycles_label = QLabel(UiSettings.ADD_SUB_CYCLES_NUM_TITLE)
         self.mul_div_num_cycles_label = QLabel(UiSettings.MUL_DIV_CYCLES_NUM_TITLE)
 
-        self.load_store_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_rerevation_stations_load_store()))
-        self.add_sub_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_rerevation_stations_add_sub()))
-        self.mul_div_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_rerevation_stations_mul_div()))
+        self.load_store_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_reservation_stations_load_store()))
+        self.add_sub_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_reservation_stations_add_sub()))
+        self.mul_div_reservation_station_num_textbox = QLineEdit(str(self.controller.get_num_reservation_stations_mul_div()))
         self.load_store_reservation_station_num_label = QLabel(UiSettings.LOAD_STORE_RS_NUM_TITLE)
         self.add_sub_reservation_station_num_label = QLabel(UiSettings.ADD_SUB_RS_NUM_TITLE)
         self.mul_div_reservation_station_num_label = QLabel(UiSettings.MUL_DIV_RS_NUM_TITLE)
@@ -60,10 +63,10 @@ class MainWindow(QMainWindow):
         self._init_reservation_station_title_labels()
         self._create_all_reservation_station_slot_labels()
         self._init_buttons()
+        self._init_combo_box()
         self._init_cycles_boxes()
         self._init_rs_num_boxes()
 
-        self.statusBar().showMessage('Status:')
         self.setGeometry(pos_x, pos_y, width, height)
         self.setWindowTitle(title)
         self.show()
@@ -138,17 +141,17 @@ class MainWindow(QMainWindow):
     def _create_all_reservation_station_slot_labels(self) -> None:
         self._create_reservation_station_slot_labels(
             rs_labels=self.load_store_reservation_station_labels,
-            get_num_rs=self.controller.get_num_rerevation_stations_load_store,
+            get_num_rs=self.controller.get_num_reservation_stations_load_store,
             pos=UiSettings.LOAD_STORE_RS_SLOT_POS
         )
         self._create_reservation_station_slot_labels(
             rs_labels=self.add_sub_reservation_station_labels,
-            get_num_rs=self.controller.get_num_rerevation_stations_add_sub,
+            get_num_rs=self.controller.get_num_reservation_stations_add_sub,
             pos=UiSettings.ADD_SUB_RS_SLOT_POS
         )
         self._create_reservation_station_slot_labels(
             rs_labels=self.mul_div_reservation_station_labels,
-            get_num_rs=self.controller.get_num_rerevation_stations_mul_div,
+            get_num_rs=self.controller.get_num_reservation_stations_mul_div,
             pos=UiSettings.MUL_DIV_RS_SLOT_POS
         )
 
@@ -183,6 +186,16 @@ class MainWindow(QMainWindow):
         buttons_group.setLayout(layout)
         buttons_group.move(UiSettings.BUTTONS_POS)
         buttons_group.adjustSize()
+
+    def _init_combo_box(self):
+        self.scheduler_selector_combo_box.addItem(UiSettings.SCHEDULER_COMBO_ITEM_TOMASULO)
+        self.scheduler_selector_combo_box.addItem(UiSettings.SCHEDULER_COMBO_ITEM_SCOREBOARD)
+        self.scheduler_selector_combo_box.move(UiSettings.SCHEDULER_COMBO_POS)
+        self.scheduler_selector_combo_box.currentIndexChanged.connect(self._scheduler_change)
+        self.scheduler_selector_combo_box.setFont(UiSettings.BUTTONS_FONT)
+
+        self.scheduler_selector_title_label.move(UiSettings.SCHEDULER_TITLE_POS)
+        self.scheduler_selector_title_label.setFont(UiSettings.BUTTONS_FONT)
 
     def _init_cycles_boxes(self) -> None:
         num_cycles_group = QGroupBox("", self.main_frame)
@@ -297,6 +310,7 @@ class MainWindow(QMainWindow):
         self._update_reservation_stations_visual()
         self._update_instruction_queue_visual()
         self._update_timing_table_content_visual()
+        self.statusBar().showMessage('Cycle: ' + str(self.controller.get_cycle_count()))
 
     def _run_button_pressed(self) -> None:
         for i in range(MAX_CYCLES_EXECUTED):
@@ -315,6 +329,11 @@ class MainWindow(QMainWindow):
             self._update_timing_table_instructions_visual(instructions)
         self._update_code_editor_visual(success, offending_line)
         self._update_reservation_stations_visual()
+
+    def _scheduler_change(self, index):
+        scheduling_algorithm = self.scheduler_selector_combo_box.currentText()
+        self.controller.set_scheduling_algorithm(scheduling_algorithm)
+        self._load_reset_button_pressed()
 
     def _set_latency_cycles(self) -> None:
         num_cycles_load_store = self.controller.get_num_cycles_load_store()
@@ -343,9 +362,9 @@ class MainWindow(QMainWindow):
 
     def _set_num_reservation_stations(self) -> None:
         max_rs_num = 10
-        load_store_rs_nums = self.controller.get_num_rerevation_stations_add_sub()
-        add_sub_rs_nums = self.controller.get_num_rerevation_stations_add_sub()
-        mul_div_rs_nums = self.controller.get_num_rerevation_stations_mul_div()
+        load_store_rs_nums = self.controller.get_num_reservation_stations_add_sub()
+        add_sub_rs_nums = self.controller.get_num_reservation_stations_add_sub()
+        mul_div_rs_nums = self.controller.get_num_reservation_stations_mul_div()
         try:
             rs_nums = int(self.load_store_reservation_station_num_textbox.text())
             if rs_nums > 0:
@@ -376,3 +395,6 @@ class MainWindow(QMainWindow):
         painter.drawLine(120, 380, 120, 420)
         painter.drawLine(400, 380, 400, 420)
         painter.drawLine(600, 380, 600, 420)
+
+    def load_reset(self):
+        self._load_reset_button_pressed()

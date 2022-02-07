@@ -16,9 +16,9 @@ class Processor:
         self.num_cycles_load_store = LOAD_STORE_LATENCY_CYCLES
         self.num_cycles_add_sub = ADD_SUB_LATENCY_CYCLES
         self.num_cycles_mul_div = MUL_DIV_LATENCY_CYCLES
-        self.num_rerevations_station_load_store = LOAD_STORE_RS_NUMS
-        self.num_rerevation_stations_add_sub = ADD_SUB_RS_NUMS
-        self.get_num_rerevation_stations_mul_div = MUL_DIV_RS_NUMS
+        self.num_reservation_stations_load_store = LOAD_STORE_RS_NUMS
+        self.num_reservation_stations_add_sub = ADD_SUB_RS_NUMS
+        self.num_reservation_stations_mul_div = MUL_DIV_RS_NUMS
 
         self.program_loaded = False
         self.instruction_memory = InstructionMemory()
@@ -31,7 +31,7 @@ class Processor:
         self.mul_div_reservation_stations: List[ReservationStation] = []
         self.load_store_reservation_stations: List[ReservationStation] = []
         self.set_reservation_station_sizes(
-            self.num_rerevation_stations_add_sub, self.get_num_rerevation_stations_mul_div, self.num_rerevations_station_load_store
+            self.num_reservation_stations_add_sub, self.num_reservation_stations_mul_div, self.num_reservation_stations_load_store
         )
         self.scheduler = Scheduler(self)
 
@@ -41,8 +41,7 @@ class Processor:
         self.instruction_queue.reset()
         self.data_memory.reset()
         self.common_data_bus.reset()
-        all_rs = self.add_sub_reservation_stations + self.mul_div_reservation_stations + self.load_store_reservation_stations
-        for rs in all_rs:
+        for rs in self.get_all_reservation_stations():
             rs.reset()
         self.scheduler.reset()
 
@@ -58,9 +57,9 @@ class Processor:
             rs.latency_in_cycles = num_cycles_mul_div
 
     def set_reservation_station_sizes(self, load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums):
-        self.num_rerevations_station_load_store = load_store_rs_nums
-        self.num_rerevation_stations_add_sub = add_sub_rs_nums
-        self.get_num_rerevation_stations_mul_div = mul_div_rs_nums
+        self.num_reservation_stations_load_store = load_store_rs_nums
+        self.num_reservation_stations_add_sub = add_sub_rs_nums
+        self.num_reservation_stations_mul_div = mul_div_rs_nums
         self.load_store_reservation_stations.clear()
         self.add_sub_reservation_stations.clear()
         self.mul_div_reservation_stations.clear()
@@ -77,22 +76,25 @@ class Processor:
         self.__fill_instruction_queue()
 
     def tick(self):
-        if self.program_loaded:
+        if self.program_loaded and self._there_is_work_to_do():
             self.cycle_count += 1
-            instruction = self.instruction_queue.top()
             self.scheduler.tick()
-            if instruction is not None:
-                issued = self.scheduler.handle(instruction)
-                if issued:
-                    self.issue_instruction()
-            self.scheduler.arbitrate()
 
-    def issue_instruction(self):
+    def update_instruction_queue(self):
         self.instruction_queue.consume()
         if not self.__is_program_finished():
             new_instruction = self.__fetch_instruction()
             if new_instruction is not None:
                 self.instruction_queue.insert(new_instruction)
+
+    def _there_is_work_to_do(self) -> bool:
+        return not(self.cycle_count != 0 and self._all_reservation_stations_are_free())
+
+    def _all_reservation_stations_are_free(self) -> bool:
+        all_are_free = True
+        for rs in self.get_all_reservation_stations():
+            all_are_free = all_are_free and rs.is_free()
+        return all_are_free
 
     def __fill_instruction_queue(self):
         for i in range(self.instruction_queue.num_empty_slots()):
@@ -110,7 +112,7 @@ class Processor:
     def __is_program_finished(self):
         return self.instruction_pointer == len(self.instruction_memory.instructions)
 
-    def _get_all_reservation_stations(self) -> List[ReservationStation]:
+    def get_all_reservation_stations(self) -> List[ReservationStation]:
         return self.load_store_reservation_stations + self.add_sub_reservation_stations + self.mul_div_reservation_stations
 
     def get_instruction_texts_in_queue(self) -> List[str]:
@@ -148,9 +150,12 @@ class Processor:
 
     def get_reservation_stations_instruction_states(self) -> List:
         instruction_state_table = []
-        for rs in self._get_all_reservation_stations():
+        for rs in self.get_all_reservation_stations():
             if rs.state is not ReservationStation.State.FREE:
                 instruction_id = id(rs.instruction)
                 instruction_state_in_text = rs.get_state_text()
                 instruction_state_table.append((instruction_id, instruction_state_in_text))
         return instruction_state_table
+
+    def set_scheduling_algorithm(self, algorithm) -> None:
+        self.scheduler.algorithm = algorithm

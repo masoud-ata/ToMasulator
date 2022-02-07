@@ -31,6 +31,7 @@ class ReservationStation:
         ATTEMPT_MEMORY_ACCESS = 5
         ATTEMPT_WRITE = 6
         WRITE_BACK = 7
+        READ_OPERANDS = 8
 
     def __init__(self, cpu, latency_in_cycles):
         self.cpu = cpu
@@ -54,10 +55,16 @@ class ReservationStation:
         self.write_succeeded = False
         self.memory_access_succeeded = False
 
+    def is_free(self) -> bool:
+        return self.state is self.State.FREE
+
+    def is_busy(self) -> bool:
+        return not self.is_free()
+
     def get_state_text(self):
         states_table = {
             self.State.FREE: "", self.State.JUST_ISSUED: "I", self.State.MEMORY: "M", self.State.EXECUTING: "E", self.State.WRITE_BACK: "W",
-            self.State.ATTEMPT_MEMORY_ACCESS: "-", self.State.WAITING: "-", self.State.ATTEMPT_WRITE: "-"
+            self.State.ATTEMPT_MEMORY_ACCESS: "-", self.State.WAITING: "-", self.State.ATTEMPT_WRITE: "-", self.State.READ_OPERANDS: "R"
         }
         state = states_table[self.state] if self.state is not self.State.EXECUTING else states_table[self.state] + str(self.counter+1)
         return state
@@ -65,7 +72,7 @@ class ReservationStation:
     def tick(self):
         if self.state == self.State.JUST_ISSUED:
             if self.source1_provider == -1 and self.source2_provider == -1:
-                self.state = self.State.EXECUTING
+                self.state = self.State.EXECUTING if self.cpu.scheduler.algorithm == 'Tomasulo' else self.State.READ_OPERANDS
             else:
                 op1_avilable = True
                 op2_avilable = True
@@ -80,7 +87,7 @@ class ReservationStation:
                         self.source2_provider = -1
                         op2_avilable = True
                 if op1_avilable and op2_avilable:
-                    self.state = self.State.EXECUTING
+                    self.state = self.State.EXECUTING if self.cpu.scheduler.algorithm == 'Tomasulo' else self.State.READ_OPERANDS
                 else:
                     self.state = self.State.WAITING
         elif self.state == self.State.WAITING:
@@ -98,7 +105,9 @@ class ReservationStation:
                     self.source2_provider = -1
                     op2_avilable = True
             if op1_avilable and op2_avilable:
-                self.state = self.State.EXECUTING
+                self.state = self.State.EXECUTING if self.cpu.scheduler.algorithm == 'Tomasulo' else self.State.READ_OPERANDS
+        elif self.state == self.State.READ_OPERANDS:
+            self.state = self.State.EXECUTING
         elif self.state == self.State.EXECUTING:
             self.counter += 1
             if self.counter == self.latency_in_cycles:
@@ -189,12 +198,30 @@ class CommonDataBus:
         self.writing_rs = None
         if len(self.pending_writes) > 0:
             sorted_pending_writes = sorted(self.pending_writes, key=lambda x: x.issue_number)
-            writing_rs = sorted_pending_writes[0]
-            self.writing_rs_id = id(writing_rs)
-            self.writing_rs = writing_rs
-            writing_rs.write_succeeded = True
-            writing_rs.state = writing_rs.State.WRITE_BACK
-            self.pending_writes.remove(writing_rs)
+            for i in range(len(sorted_pending_writes)):
+                writing_rs = sorted_pending_writes[i]
+                if self.cpu.scheduler.algorithm == 'Tomasulo':
+                    self.writing_rs_id = id(writing_rs)
+                    self.writing_rs = writing_rs
+                    writing_rs.write_succeeded = True
+                    writing_rs.state = writing_rs.State.WRITE_BACK
+                    self.pending_writes.remove(writing_rs)
+                    break
+                else:
+                    found_war = False
+                    for rs in self.cpu.get_all_reservation_stations():
+                        if rs.is_busy():
+                            if rs.instruction.source1 == writing_rs.instruction.destination or rs.instruction.source2 == writing_rs.instruction.destination:
+                                if (rs.state == rs.State.WAITING or rs.state == rs.State.READ_OPERANDS) and rs.issue_number < writing_rs.issue_number:
+                                    found_war = True
+                                    break
+                    if not found_war:
+                        self.writing_rs_id = id(writing_rs)
+                        self.writing_rs = writing_rs
+                        writing_rs.write_succeeded = True
+                        writing_rs.state = writing_rs.State.WRITE_BACK
+                        self.pending_writes.remove(writing_rs)
+                        break
 
 
 class DataMemory:
@@ -216,7 +243,6 @@ class DataMemory:
             sorted_pending_accesses = sorted(self.pending_accesses, key=lambda x: x.issue_number)
             requesting_rs = sorted_pending_accesses[0]
             self.requesting_rs_id = id(requesting_rs)
-            requesting_rs.write_succeeded = True
             requesting_rs.state = requesting_rs.State.MEMORY
             self.pending_accesses.remove(requesting_rs)
 
@@ -226,6 +252,7 @@ class Scheduler:
 
     def __init__(self, cpu):
         self.cpu = cpu
+        self.algorithm = 'Tomasulo'
         self.issue_number = 0
         self.register_stat = {"": Scheduler.REGISTER_FILE}
         for i in range(32):
@@ -237,59 +264,93 @@ class Scheduler:
         for i in range(32):
             self.register_stat["f" + str(i)] = Scheduler.REGISTER_FILE
 
-    def handle(self, instruction: Instruction):
+    def attempt_issue(self, instruction: Instruction):
         issued = False
-        if instruction.operation == "fadd" or instruction.operation == "fsub":
-            for rs in self.cpu.add_sub_reservation_stations:
-                if rs.state == rs.State.FREE:
-                    self.__assign_math_inst_to_reservation_station(rs, instruction)
-                    issued = True
-                    break
-        elif instruction.operation == "fmul" or instruction.operation == "fdiv":
-            for rs in self.cpu.mul_div_reservation_stations:
-                if rs.state == rs.State.FREE:
-                    self.__assign_math_inst_to_reservation_station(rs, instruction)
-                    issued = True
-                    break
-        elif instruction.operation == "flw":
-            for rs in self.cpu.load_store_reservation_stations:
-                if rs.state == rs.State.FREE:
-                    self.__assign_load_inst_to_reservation_station(rs, instruction)
-                    issued = True
-                    break
-        elif instruction.operation == "fsw":
-            for rs in self.cpu.load_store_reservation_stations:
-                if rs.state == rs.State.FREE:
-                    self.__assign_store_inst_to_reservation_station(rs, instruction)
-                    issued = True
-                    break
+        if instruction is None:
+            pass
+        elif self.algorithm == 'Scoreboard' and self.register_stat[instruction.destination] != Scheduler.REGISTER_FILE:
+            pass
+        elif instruction.is_add_sub():
+            issued = self._attempt_assign_add_sub_inst(instruction)
+        elif instruction.is_mul_div():
+            issued = self._attempt_assign_mul_div_inst(instruction)
+        elif instruction.is_load():
+            issued = self._attempt_assign_load_inst(instruction)
+        elif instruction.is_store():
+            issued = self._attempt_assign_store_inst(instruction)
         return issued
 
-    def __assign_math_inst_to_reservation_station(self, rs, instruction):
-        rs.instruction = instruction
-        rs.state = rs.State.JUST_ISSUED
+    def _attempt_assign_add_sub_inst(self, instruction) -> bool:
+        assigned = False
+        for rs in self.cpu.add_sub_reservation_stations:
+            if rs.is_free():
+                self._assign_math_inst_to_reservation_station(rs, instruction)
+                assigned = True
+                break
+        return assigned
+
+    def _attempt_assign_mul_div_inst(self, instruction) -> bool:
+        assigned = False
+        for rs in self.cpu.mul_div_reservation_stations:
+            if rs.is_free():
+                self._assign_math_inst_to_reservation_station(rs, instruction)
+                assigned = True
+                break
+        return assigned
+
+    def _attempt_assign_load_inst(self, instruction) -> bool:
+        assigned = False
+        for rs in self.cpu.load_store_reservation_stations:
+            if rs.is_free():
+                self._assign_load_inst_to_reservation_station(rs, instruction)
+                assigned = True
+                break
+        return assigned
+
+    def _attempt_assign_store_inst(self, instruction) -> bool:
+        assigned = False
+        for rs in self.cpu.load_store_reservation_stations:
+            if rs.is_free():
+                self._assign_store_inst_to_reservation_station(rs, instruction)
+                assigned = True
+                break
+        return assigned
+
+    def _assign_math_inst_to_reservation_station(self, rs, instruction):
         rs.source1_provider = self.register_stat[instruction.source1]
         rs.source2_provider = self.register_stat[instruction.source2]
         self.register_stat[instruction.destination] = id(rs)
-        rs.issue_number = self.issue_number
-        self.issue_number += 1
+        self._complete_assignment(rs, instruction)
 
-    def __assign_load_inst_to_reservation_station(self, rs, instruction):
-        rs.instruction = instruction
-        rs.state = rs.State.JUST_ISSUED
+    def _assign_load_inst_to_reservation_station(self, rs, instruction):
         rs.source1_provider = Scheduler.REGISTER_FILE
         rs.source2_provider = Scheduler.REGISTER_FILE
         self.register_stat[instruction.destination] = id(rs)
+        self._complete_assignment(rs, instruction)
+
+    def _assign_store_inst_to_reservation_station(self, rs, instruction):
+        rs.source1_provider = self.register_stat[instruction.source1]
+        rs.source2_provider = Scheduler.REGISTER_FILE
+        self._complete_assignment(rs, instruction)
+
+    def _complete_assignment(self, rs, instruction):
+        rs.instruction = instruction
+        rs.state = rs.State.JUST_ISSUED
         rs.issue_number = self.issue_number
         self.issue_number += 1
 
-    def __assign_store_inst_to_reservation_station(self, rs, instruction):
-        rs.instruction = instruction
-        rs.state = rs.State.JUST_ISSUED
-        rs.source1_provider = self.register_stat[instruction.source1]
-        rs.source2_provider = Scheduler.REGISTER_FILE
-        rs.issue_number = self.issue_number
-        self.issue_number += 1
+    def tick(self):
+        for rs in self.cpu.get_all_reservation_stations():
+            rs.tick()
+        issued = self.attempt_issue(self.cpu.instruction_queue.top())
+        if issued:
+            self.cpu.update_instruction_queue()
+        self.arbitrate()
+
+    def arbitrate(self):
+        self.cpu.common_data_bus.arbitrate_writes()
+        self.update_register_stat()
+        self.cpu.data_memory.arbitrate_accesses()
 
     def update_register_stat(self):
         writing_rs = self.cpu.common_data_bus.writing_rs
@@ -297,16 +358,3 @@ class Scheduler:
             this_rs_is_the_provider = self.cpu.scheduler.register_stat[writing_rs.instruction.destination] == id(writing_rs)
             if this_rs_is_the_provider:
                 self.cpu.scheduler.register_stat[writing_rs.instruction.destination] = Scheduler.REGISTER_FILE
-
-    def tick(self):
-        for rs in self.cpu.add_sub_reservation_stations:
-            rs.tick()
-        for rs in self.cpu.mul_div_reservation_stations:
-            rs.tick()
-        for rs in self.cpu.load_store_reservation_stations:
-            rs.tick()
-
-    def arbitrate(self):
-        self.cpu.common_data_bus.arbitrate_writes()
-        self.update_register_stat()
-        self.cpu.data_memory.arbitrate_accesses()
