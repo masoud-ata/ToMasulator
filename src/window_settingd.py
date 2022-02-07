@@ -3,6 +3,25 @@ from PyQt5.QtGui import QFont
 
 
 class UiSettings:
+    LOAD_BUTTON_TITLE = 'Load / Reset'
+    STEP_BUTTON_TITLE = 'Step'
+    RUN_BUTTON_TITLE = 'Run'
+    LOAD_BUTTON_TOOLTIP = 'Load the program into the instruction queue / reset the processor'
+    STEP_BUTTON_TOOLTIP = 'Step one cycle'
+    RUN_BUTTON_TOOLTIP = 'Run all the code to the end'
+    LOAD_STORE_CYCLES_NUM_TITLE = 'No. Cycles for Load/Store'
+    ADD_SUB_CYCLES_NUM_TITLE = 'No. Cycles for Add/Sub'
+    MUL_DIV_CYCLES_NUM_TITLE = 'No. Cycles for Mul/Div'
+    LOAD_STORE_RS_NUM_TITLE = 'No. Load/Store RSs'
+    ADD_SUB_RS_NUM_TITLE = 'No. Add/Sub RSs'
+    MUL_DIV_RS_NUM_TITLE = 'No. Mul/Div RSs'
+    INSTRUCTION_QUEUE_TITLE = 'Instruction queue'
+    LOAD_STORE_RS_TITLE = 'Load/Store RS'
+    ADD_SUB_RS_TITLE = 'Add/Sub RS'
+    MUL_DIV_RS_TITLE = 'Mul/Div RS'
+    CODE_EDITOR_SUCCESS_STATUS = 'Pass'
+    CODE_EDITOR_FAIL_STATUS = 'Error at line '
+
     SLOT_FONT = QFont('Consolas', 14)
     SLOT_TITLE_FONT = QFont('Arial', 11)
     BUTTONS_FONT = QFont('Arial', 10)
@@ -11,11 +30,11 @@ class UiSettings:
     CODE_EDITOR_STATUS = QFont('Consolas', 14)
     TIMING_TABEL_FONT = QFont('Consolas', 12)
 
-    RED_COLOR = "lightcoral"
-    GREEN_COLOR = "lightgreen"
-    WHITE_STYLE = "background-color: white; border: 1px solid black;"
-    GREEN_STYLE = "background-color: " + GREEN_COLOR + "; font-weight: bold; border: 1px solid black;"
-    RED_STYLE = "background-color: " + RED_COLOR + "; font-weight: bold; border: 1px solid black;"
+    RED_COLOR = 'lightcoral'
+    GREEN_COLOR = 'lightgreen'
+    WHITE_STYLE = 'background-color: white; border: 1px solid black;'
+    GREEN_STYLE = 'background-color: ' + GREEN_COLOR + '; font-weight: bold; border: 1px solid black;'
+    RED_STYLE = 'background-color: ' + RED_COLOR + '; font-weight: bold; border: 1px solid black;'
 
     TOP_POS_Y = 10
     CODE_EDITOR_POS = QPoint(10, TOP_POS_Y)

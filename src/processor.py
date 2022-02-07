@@ -30,7 +30,9 @@ class Processor:
         self.add_sub_reservation_stations: List[ReservationStation] = []
         self.mul_div_reservation_stations: List[ReservationStation] = []
         self.load_store_reservation_stations: List[ReservationStation] = []
-        self.set_reservation_station_sizes(self.num_rerevation_stations_add_sub, self.get_num_rerevation_stations_mul_div, self.num_rerevations_station_load_store)
+        self.set_reservation_station_sizes(
+            self.num_rerevation_stations_add_sub, self.get_num_rerevation_stations_mul_div, self.num_rerevations_station_load_store
+        )
         self.scheduler = Scheduler(self)
 
     def reset(self):
@@ -89,7 +91,8 @@ class Processor:
         self.instruction_queue.consume()
         if not self.__is_program_finished():
             new_instruction = self.__fetch_instruction()
-            self.instruction_queue.insert(new_instruction)
+            if new_instruction is not None:
+                self.instruction_queue.insert(new_instruction)
 
     def __fill_instruction_queue(self):
         for i in range(self.instruction_queue.num_empty_slots()):
@@ -107,17 +110,11 @@ class Processor:
     def __is_program_finished(self):
         return self.instruction_pointer == len(self.instruction_memory.instructions)
 
-    def get_instruction_texts_in_queue(self) -> List[str]:
-        instructions: List[str] = []
-        for inst in self.instruction_queue.instructions:
-            instructions.append(inst.raw_text)
-        return instructions
+    def _get_all_reservation_stations(self) -> List[ReservationStation]:
+        return self.load_store_reservation_stations + self.add_sub_reservation_stations + self.mul_div_reservation_stations
 
-    # def get_instruction_texts_in_add_sub_reservation_stations(self) -> List[str]:
-    #     instructions: List[str] = []
-    #     for rs in self.add_sub_reservation_stations:
-    #         instructions.append(rs.instruction.raw_text)
-    #     return instructions
+    def get_instruction_texts_in_queue(self) -> List[str]:
+        return self.instruction_queue.get_instructions_list_text()
 
     def get_num_instruction_queue_slots(self) -> int:
         return self.instruction_queue.get_num_slots()
@@ -149,9 +146,11 @@ class Processor:
     def mul_div_reservation_station_is_just_issued(self, index) -> bool:
         return self.mul_div_reservation_stations[index].state == ReservationStation.State.JUST_ISSUED
 
-    def get_reservation_stations_info(self):
-        rs_states = []
-        all_rs = self.add_sub_reservation_stations + self.mul_div_reservation_stations + self.load_store_reservation_stations
-        for rs in all_rs:
-            rs_states.append((str(rs.state.name), id(rs.instruction)))
-        return rs_states
+    def get_reservation_stations_instruction_states(self) -> List:
+        instruction_state_table = []
+        for rs in self._get_all_reservation_stations():
+            if rs.state is not ReservationStation.State.FREE:
+                instruction_id = id(rs.instruction)
+                instruction_state_in_text = rs.get_state_text()
+                instruction_state_table.append((instruction_id, instruction_state_in_text))
+        return instruction_state_table

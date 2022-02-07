@@ -72,7 +72,7 @@ class QCodeEditor(QPlainTextEdit):
         self.highlighter.clear_highlight()
 
     def highlight_line(self, line, color="white"):
-        self.highlighter.highlight_line(line, color)
+        self.highlighter.highlight_line(line-1, color)
 
 
 class _QLineNumberArea(QWidget):

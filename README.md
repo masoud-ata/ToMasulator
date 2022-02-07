@@ -14,7 +14,7 @@ The simulator has been tested on Windows 10, Linux and Mac with Python 3.6
 
 
 # Simulator's main window
-Below is an image of the simulator's window showing the editor, the instruction queue, different reservation stations, and the instruction timing table. The number of latency cycles of different units is adjustable. There is also the possibilty of changing the number resevation stations.
+Below is an image of the simulator's window showing the editor, the instruction queue, different reservation stations, and the instruction timing table. The number of latency cycles of different units is adjustable. There is also the possibilty of changing the number of resevation stations.
 
 There are 3 buttons allwoing to load the assembly program, step through the code, and execute the code fully, respectively.
 

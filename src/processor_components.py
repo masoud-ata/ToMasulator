@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import List
 
+import pefile
+
 from instruction import Instruction
 
 INSTRUCTION_QUEUE_SLOT_NUMS = 3
@@ -53,6 +55,14 @@ class ReservationStation:
         self.issue_number = 0
         self.write_succeeded = False
         self.memory_access_succeeded = False
+
+    def get_state_text(self):
+        states_table = {
+            self.State.FREE: "", self.State.JUST_ISSUED: "I", self.State.MEMORY: "M", self.State.EXECUTING: "E", self.State.WRITE_BACK: "W",
+            self.State.ATTEMPT_MEMORY_ACCESS: "-", self.State.WAITING: "-", self.State.ATTEMPT_WRITE: "-"
+        }
+        state = states_table[self.state] if self.state is not self.State.EXECUTING else states_table[self.state] + str(self.counter+1)
+        return state
 
     def tick(self):
         if self.state == self.State.JUST_ISSUED:
@@ -128,6 +138,12 @@ class InstructionQueue:
 
     def get_num_slots(self):
         return INSTRUCTION_QUEUE_SLOT_NUMS
+
+    def get_instructions_list_text(self) -> List[str]:
+        inst_list = []
+        for inst in self.instructions:
+            inst_list.append(inst.raw_text)
+        return inst_list
 
     def has_space(self):
         return len(self.instructions) < INSTRUCTION_QUEUE_SLOT_NUMS

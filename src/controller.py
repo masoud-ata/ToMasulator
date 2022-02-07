@@ -48,9 +48,6 @@ class Controller:
     def get_instruction_texts_in_queue(self) -> List[str]:
         return self._cpu.get_instruction_texts_in_queue()
 
-    # def get_instruction_texts_in_add_sub_reservation_stations(self) -> List[str]:
-    #     return self._cpu.get_instruction_texts_in_add_sub_reservation_stations()
-
     def get_load_store_reservation_station_instruction_text(self, index) -> str:
         return self._cpu.get_load_store_reservation_station_instruction_text(index)
 
@@ -78,8 +75,8 @@ class Controller:
     def mul_div_reservation_station_is_just_issued(self, index) -> bool:
         return self._cpu.mul_div_reservation_station_is_just_issued(index)
 
-    def get_reservation_stations_info(self):
-        return self._cpu.get_reservation_stations_info()
+    def get_reservation_stations_instruction_states(self) -> List:
+        return self._cpu.get_reservation_stations_instruction_states()
 
     def set_reservation_station_sizes(self, load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums):
         self._cpu.set_reservation_station_sizes(load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums)
