@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self.timing_table.move(UiSettings.TIMING_TABLE_POS)
         self.timing_table.resize(UiSettings.TIMING_TABEL_SIZE)
         col_headers = ['Instructions'] + [str(col_number+1) for col_number in range(UiSettings.NUM_COLS_TIMING_TABLE)]
-        row_headers = [''] + [str(col_number+1) for col_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
+        row_headers = [''] + [str(row_number+1) for row_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
         self.timing_table.setHorizontalHeaderLabels(col_headers)
         self.timing_table.setVerticalHeaderLabels(row_headers)
         instructions_col = 0
@@ -97,13 +97,14 @@ class MainWindow(QMainWindow):
         for row in range(UiSettings.NUM_ROWS_TIMING_TABLE):
             for col in range(UiSettings.NUM_COLS_TIMING_TABLE):
                 item_id = QTableWidgetItem("")
-                self.timing_table.setItem(row + 1, col + 1, item_id)
+                self.timing_table.setItem(row, col + 1, item_id)
 
     def _set_timing_table_row_labels(self, names: List[str]) -> None:
         self._clear_timing_table()
+        instructions_col = 0
         for row, name in enumerate(names):
             item_id = QTableWidgetItem(name)
-            self.timing_table.setItem(row+1, 0, item_id)
+            self.timing_table.setItem(row+1, instructions_col, item_id)
 
     def _init_instruction_queue_labels(self) -> None:
         num_slots = self.controller.get_num_instruction_queue_slots()
