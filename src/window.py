@@ -1,7 +1,7 @@
 from typing import List
 
 from PyQt5.QtWidgets import (QPushButton, QLabel, QMainWindow, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QLineEdit, QGroupBox, QFrame, QVBoxLayout, QHBoxLayout, QComboBox)
+                             QLineEdit, QGroupBox, QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QApplication, QMessageBox)
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QPoint
 
@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.add_sub_reservation_station_num_label = QLabel(UiSettings.ADD_SUB_RS_NUM_TITLE)
         self.mul_div_reservation_station_num_label = QLabel(UiSettings.MUL_DIV_RS_NUM_TITLE)
 
+        self._init_menu_bar()
         self._init_code_editor()
         self._init_timing_table()
         self._init_instruction_queue_labels()
@@ -70,6 +71,28 @@ class MainWindow(QMainWindow):
         self.setGeometry(pos_x, pos_y, width, height)
         self.setWindowTitle(title)
         self.show()
+
+    def _init_menu_bar(self):
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu('&File')
+        file_menu.addAction('Exit')
+        file_menu.triggered.connect(self._file_menu_actions)
+
+        help_menu = menu_bar.addMenu('Help')
+        help_menu.addAction('About')
+        help_menu.triggered.connect(self._help_menu_actions)
+
+    @staticmethod
+    def _file_menu_actions(action):
+        if action.text() == 'Exit':
+            QApplication.quit()
+
+    def _help_menu_actions(self, action):
+        if action.text() == 'About':
+            QMessageBox.about(
+                self, UiSettings.ABOUT_WINDOW_TITLE, "<a " + UiSettings.ABOUT_WINDOW_GITHUB_LINK +
+                UiSettings.ABOUT_WINDOW_TEXT + "</a>"
+            )
 
     def _init_code_editor(self) -> None:
         self.code_editor.move(UiSettings.CODE_EDITOR_POS)
@@ -87,16 +110,15 @@ class MainWindow(QMainWindow):
         self.timing_table.setFont(UiSettings.TIMING_TABEL_FONT)
         self.timing_table.move(UiSettings.TIMING_TABLE_POS)
         self.timing_table.resize(UiSettings.TIMING_TABEL_SIZE)
-        col_headers = ['Instructions'] + [str(col_number+1) for col_number in range(UiSettings.NUM_COLS_TIMING_TABLE)]
-        row_headers = [''] + [str(row_number+1) for row_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
+        col_headers = [str(col_number+1) for col_number in range(UiSettings.NUM_COLS_TIMING_TABLE)]
+        row_headers = [''] + ["{:<2}".format(str(row_number+1)) for row_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
         self.timing_table.setHorizontalHeaderLabels(col_headers)
         self.timing_table.setVerticalHeaderLabels(row_headers)
-        instructions_col = 0
-        self.timing_table.horizontalHeader().setSectionResizeMode(instructions_col, QHeaderView.ResizeToContents)
-        for col in range(instructions_col+1, UiSettings.NUM_COLS_TIMING_TABLE):
+        for col in range(UiSettings.NUM_COLS_TIMING_TABLE):
             self.timing_table.setColumnWidth(col, UiSettings.TIMING_TABLE_COL_WIDTH)
 
     def _clear_timing_table(self) -> None:
+        self.timing_table.clear()
         for row in range(UiSettings.NUM_ROWS_TIMING_TABLE):
             for col in range(UiSettings.NUM_COLS_TIMING_TABLE):
                 item_id = QTableWidgetItem("")
@@ -104,10 +126,10 @@ class MainWindow(QMainWindow):
 
     def _set_timing_table_row_labels(self, names: List[str]) -> None:
         self._clear_timing_table()
-        instructions_col = 0
-        for row, name in enumerate(names):
-            item_id = QTableWidgetItem(name)
-            self.timing_table.setItem(row+1, instructions_col, item_id)
+        row_numbers = [''] + ["{:>2}".format(str(row_number+1)) + ") " for row_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
+        inst_list = [''] + names + [''] * UiSettings.NUM_ROWS_TIMING_TABLE
+        row_headers = [number + inst for number, inst in zip(row_numbers, inst_list)]
+        self.timing_table.setVerticalHeaderLabels(row_headers)
 
     def _init_instruction_queue_labels(self) -> None:
         num_slots = self.controller.get_num_instruction_queue_slots()
@@ -303,7 +325,7 @@ class MainWindow(QMainWindow):
         for inst_state in self.controller.get_reservation_stations_instruction_states():
             inst_id, inst_state_text = inst_state
             item_id = QTableWidgetItem(inst_state_text)
-            self.timing_table.setItem(self.instruction_table[inst_id], cycle_no, item_id)
+            self.timing_table.setItem(self.instruction_table[inst_id], cycle_no-1, item_id)
 
     def _step_button_pressed(self) -> None:
         self.controller.tick()
@@ -330,7 +352,7 @@ class MainWindow(QMainWindow):
         self._update_code_editor_visual(success, offending_line)
         self._update_reservation_stations_visual()
 
-    def _scheduler_change(self, index):
+    def _scheduler_change(self):
         scheduling_algorithm = self.scheduler_selector_combo_box.currentText()
         self.controller.set_scheduling_algorithm(scheduling_algorithm)
         self._load_reset_button_pressed()
@@ -386,15 +408,20 @@ class MainWindow(QMainWindow):
 
         self.controller.set_reservation_station_sizes(load_store_rs_nums, add_sub_rs_nums, mul_div_rs_nums)
 
-    def paintEvent(self, event) -> None:
+    def _draw_wires(self) -> None:
+        offset_y = self.main_frame.pos().y()
+        offset_x = self.main_frame.pos().x()
         painter = QPainter(self)
         painter.setPen(Qt.black)
         painter.setBrush(Qt.white)
-        painter.drawLine(400, 330, 400, 380)
-        painter.drawLine(120, 380, 600, 380)
-        painter.drawLine(120, 380, 120, 420)
-        painter.drawLine(400, 380, 400, 420)
-        painter.drawLine(600, 380, 600, 420)
+        painter.drawLine(400+offset_x, 330+offset_y, 400+offset_x, 380+offset_y)
+        painter.drawLine(120+offset_x, 380+offset_y, 600+offset_x, 380+offset_y)
+        painter.drawLine(120+offset_x, 380+offset_y, 120+offset_x, 420+offset_y)
+        painter.drawLine(400+offset_x, 380+offset_y, 400+offset_x, 420+offset_y)
+        painter.drawLine(600+offset_x, 380+offset_y, 600+offset_x, 420+offset_y)
 
-    def load_reset(self):
+    def paintEvent(self, event) -> None:
+        self._draw_wires()
+
+    def load_reset(self) -> None:
         self._load_reset_button_pressed()

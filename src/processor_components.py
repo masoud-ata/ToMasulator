@@ -55,6 +55,9 @@ class ReservationStation:
         self.write_succeeded = False
         self.memory_access_succeeded = False
 
+    def id(self) -> int:
+        return id(self)
+
     def is_free(self) -> bool:
         return self.state is self.State.FREE
 
@@ -68,6 +71,9 @@ class ReservationStation:
         }
         state = states_table[self.state] if self.state is not self.State.EXECUTING else states_table[self.state] + str(self.counter+1)
         return state
+
+    def set_memory_access_success(self, status) -> None:
+        self.memory_access_succeeded = status
 
     def tick(self):
         if self.state == self.State.JUST_ISSUED:
@@ -118,8 +124,8 @@ class ReservationStation:
                     self.cpu.common_data_bus.attempt_write(self)
                     self.state = self.State.ATTEMPT_WRITE
         elif self.state == self.State.ATTEMPT_MEMORY_ACCESS:
-            if self.memory_access_succeeded:
-                self.state = self.State.MEMORY
+            # Resolved in after_tick()
+            pass
         elif self.state == self.State.MEMORY:
             if self.instruction.operation == "fsw":
                 self.reset()
@@ -132,6 +138,11 @@ class ReservationStation:
         elif self.state == self.State.WRITE_BACK:
             self.reset()
 
+    def after_tick(self):
+        if self.state == self.State.ATTEMPT_MEMORY_ACCESS and self.memory_access_succeeded:
+            self.state = self.State.MEMORY
+            self.memory_access_succeeded = False
+
 
 class InstructionQueue:
     def __init__(self):
@@ -143,7 +154,8 @@ class InstructionQueue:
     def has_pending_instructions(self):
         return len(self.instructions) > 0
 
-    def get_num_slots(self):
+    @staticmethod
+    def get_num_slots():
         return INSTRUCTION_QUEUE_SLOT_NUMS
 
     def get_instructions_list_text(self) -> List[str]:
@@ -193,7 +205,7 @@ class CommonDataBus:
     def attempt_write(self, rs: ReservationStation):
         self.pending_writes.append(rs)
 
-    def arbitrate_writes(self):
+    def arbitrate_write_backs(self):
         self.writing_rs_id = 0
         self.writing_rs = None
         if len(self.pending_writes) > 0:
@@ -211,7 +223,8 @@ class CommonDataBus:
                     found_war = False
                     for rs in self.cpu.get_all_reservation_stations():
                         if rs.is_busy():
-                            if rs.instruction.source1 == writing_rs.instruction.destination or rs.instruction.source2 == writing_rs.instruction.destination:
+                            if rs.instruction.source1 == writing_rs.instruction.destination or \
+                                    rs.instruction.source2 == writing_rs.instruction.destination:
                                 if (rs.state == rs.State.WAITING or rs.state == rs.State.READ_OPERANDS) and rs.issue_number < writing_rs.issue_number:
                                     found_war = True
                                     break
@@ -225,26 +238,24 @@ class CommonDataBus:
 
 
 class DataMemory:
-    def __init__(self, cpu):
-        self.cpu = cpu
-        self.pending_accesses: List[ReservationStation] = []
-        self.requesting_rs_id = 0
+    def __init__(self):
+        self._pending_accesses: List[ReservationStation] = []
 
-    def reset(self):
-        self.pending_accesses.clear()
-        self.requesting_rs_id = 0
+    def reset(self) -> None:
+        self._pending_accesses.clear()
 
-    def attempt_access(self, rs: ReservationStation):
-        self.pending_accesses.append(rs)
+    def _there_are_pending_accesses(self) -> bool:
+        return len(self._pending_accesses) > 0
 
-    def arbitrate_accesses(self):
-        self.requesting_rs_id = 0
-        if len(self.pending_accesses) > 0:
-            sorted_pending_accesses = sorted(self.pending_accesses, key=lambda x: x.issue_number)
-            requesting_rs = sorted_pending_accesses[0]
-            self.requesting_rs_id = id(requesting_rs)
-            requesting_rs.state = requesting_rs.State.MEMORY
-            self.pending_accesses.remove(requesting_rs)
+    def attempt_access(self, rs: ReservationStation) -> None:
+        self._pending_accesses.append(rs)
+
+    def arbitrate_accesses(self) -> None:
+        if self._there_are_pending_accesses():
+            sorted_pending_accesses = sorted(self._pending_accesses, key=lambda x: x.issue_number)
+            winning_rs = sorted_pending_accesses[0]
+            winning_rs.set_memory_access_success(True)
+            self._pending_accesses.remove(winning_rs)
 
 
 class Scheduler:
@@ -346,9 +357,11 @@ class Scheduler:
         if issued:
             self.cpu.update_instruction_queue()
         self.arbitrate()
+        for rs in self.cpu.get_all_reservation_stations():
+            rs.after_tick()
 
     def arbitrate(self):
-        self.cpu.common_data_bus.arbitrate_writes()
+        self.cpu.common_data_bus.arbitrate_write_backs()
         self.update_register_stat()
         self.cpu.data_memory.arbitrate_accesses()
 

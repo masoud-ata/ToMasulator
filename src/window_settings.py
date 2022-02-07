@@ -3,6 +3,9 @@ from PyQt5.QtGui import QFont
 
 
 class UiSettings:
+    ABOUT_WINDOW_TITLE = 'About ToMasulator'
+    ABOUT_WINDOW_GITHUB_LINK = "href='https://github.com/masoud-ata/ToMasulator'>"
+    ABOUT_WINDOW_TEXT = 'ToMasulator on GitHub (develpoed by Mohammad Attari)'
     LOAD_BUTTON_TITLE = 'Load / Reset'
     STEP_BUTTON_TITLE = 'Step'
     RUN_BUTTON_TITLE = 'Run'
@@ -69,4 +72,4 @@ class UiSettings:
     NUM_RS_TEXTBOX_SIZE = NUM_CYCLES_TEXTBOX_SIZE
 
     NUM_ROWS_TIMING_TABLE = 50 + 1
-    NUM_COLS_TIMING_TABLE = 200 + 1
+    NUM_COLS_TIMING_TABLE = 200

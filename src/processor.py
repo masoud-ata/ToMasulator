@@ -24,7 +24,7 @@ class Processor:
         self.instruction_memory = InstructionMemory()
         self.instruction_pointer = 0
         self.cycle_count = 0
-        self.data_memory = DataMemory(self)
+        self.data_memory = DataMemory()
         self.common_data_bus = CommonDataBus(self)
         self.instruction_queue = InstructionQueue()
         self.add_sub_reservation_stations: List[ReservationStation] = []
