@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt, QPoint
 
 from custom_editor import QCodeEditor
 from assembler import assemble
-from window_settingd import UiSettings
+from window_settings import UiSettings
 # from controller import Controller
 
 
@@ -84,11 +84,14 @@ class MainWindow(QMainWindow):
         self.timing_table.setFont(UiSettings.TIMING_TABEL_FONT)
         self.timing_table.move(UiSettings.TIMING_TABLE_POS)
         self.timing_table.resize(UiSettings.TIMING_TABEL_SIZE)
-        headers = ['']
-        for i in range(UiSettings.NUM_COLS_TIMING_TABLE):
-            headers.append(str(i + 1))
-        self.timing_table.setHorizontalHeaderLabels(headers)
-        self.timing_table.setVerticalHeaderLabels(headers)
+        col_headers = ['Instructions'] + [str(col_number+1) for col_number in range(UiSettings.NUM_COLS_TIMING_TABLE)]
+        row_headers = [''] + [str(col_number+1) for col_number in range(UiSettings.NUM_ROWS_TIMING_TABLE)]
+        self.timing_table.setHorizontalHeaderLabels(col_headers)
+        self.timing_table.setVerticalHeaderLabels(row_headers)
+        instructions_col = 0
+        self.timing_table.horizontalHeader().setSectionResizeMode(instructions_col, QHeaderView.ResizeToContents)
+        for col in range(instructions_col+1, UiSettings.NUM_COLS_TIMING_TABLE):
+            self.timing_table.setColumnWidth(col, UiSettings.TIMING_TABLE_COL_WIDTH)
 
     def _clear_timing_table(self) -> None:
         for row in range(UiSettings.NUM_ROWS_TIMING_TABLE):
@@ -101,8 +104,6 @@ class MainWindow(QMainWindow):
         for row, name in enumerate(names):
             item_id = QTableWidgetItem(name)
             self.timing_table.setItem(row+1, 0, item_id)
-        self.timing_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.timing_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
     def _init_instruction_queue_labels(self) -> None:
         num_slots = self.controller.get_num_instruction_queue_slots()
