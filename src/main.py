@@ -6,6 +6,8 @@ from controller import Controller
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+
     controller = Controller()
     sys.exit(app.exec_())
 
