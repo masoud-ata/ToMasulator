@@ -1,8 +1,6 @@
 from enum import Enum
 from typing import List
 
-import pefile
-
 from instruction import Instruction
 
 INSTRUCTION_QUEUE_SLOT_NUMS = 3
