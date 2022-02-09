@@ -8,7 +8,7 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
 
-    controller = Controller()
+    Controller()
     sys.exit(app.exec_())
 
 

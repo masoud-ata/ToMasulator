@@ -1,8 +1,8 @@
-# ToMasulator
+# ToMasulator: A Tomasulo & Scoreboarding Visual Simulator
 A simple visual simulator developed fully in Python and based on the Tomasulo and 
 Scorebaording algorithms as described in the book 
-[Computer Architecture: A Quantitative Approach](https://www.amazon.com/gp/product/0128119055/ref=dbs_a_def_rwt_bibl_vppi_i1)
-and further explained here [Tomasulo algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm) and here 
+[Computer Architecture: A Quantitative Approach](https://www.amazon.com/gp/product/0128119055/ref=dbs_a_def_rwt_bibl_vppi_i1),
+and further explained here: [Tomasulo algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm), and here: 
 [Scoreboarding](https://en.wikipedia.org/wiki/Scoreboarding).
 
 It only supports 6 instructions, but this is enough to showcase the scheduling of instructions in both algorithms.

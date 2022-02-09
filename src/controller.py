@@ -10,13 +10,13 @@ class Controller:
         self._ui = MainWindow(pos_x=300, pos_y=300, width=1610, height=600, title='ToMasulator', controller=self)
         self._ui.load_reset()
 
-    def tick(self):
+    def tick(self) -> None:
         self._cpu.tick()
 
-    def reset(self):
+    def reset(self) -> None:
         self._cpu.reset()
 
-    def upload_to_memory(self, instructions):
+    def upload_to_memory(self, instructions) -> None:
         self._cpu.upload_to_memory(instructions)
 
     def get_cycle_count(self) -> int:
