@@ -1,14 +1,16 @@
+import configparser
 from typing import List
 
 from PyQt5.QtWidgets import (
     QPushButton, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QLineEdit, QGroupBox,
-    QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QApplication, QMessageBox, QSplitter, QWidget
-)
+    QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QApplication, QMessageBox, QSplitter, QWidget,
+    QStyleFactory, QAction)
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QPoint
 
 from custom_editor import QCodeEditor
 from assembler import assemble
+from settings import save_style_in_settings_file
 from window_settings import UiSettings
 
 
@@ -90,17 +92,31 @@ class MainWindow(QMainWindow):
     def _init_menu_bar(self):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('&File')
-        file_menu.addAction('Exit')
-        file_menu.triggered.connect(self._file_menu_actions)
+
+        set_style_menu = file_menu.addMenu("Set Style")
+        styles = QStyleFactory.keys()
+        style_acions = [QAction(style.capitalize(), self) for style in styles]
+        for style_action in style_acions:
+            set_style_menu.addAction(style_action)
+        set_style_menu.triggered.connect(self._set_style_menu_action)
+
+        exit_action = QAction("Exit", self)
+        file_menu.addAction(exit_action)
+        exit_action.triggered.connect(self._exit_menu_action)
 
         help_menu = menu_bar.addMenu('Help')
         help_menu.addAction('About')
         help_menu.triggered.connect(self._help_menu_actions)
 
     @staticmethod
-    def _file_menu_actions(action):
-        if action.text() == 'Exit':
-            QApplication.quit()
+    def _exit_menu_action():
+        QApplication.quit()
+
+    @staticmethod
+    def _set_style_menu_action(action):
+        style = action.text()
+        QApplication.setStyle(style)
+        save_style_in_settings_file(style)
 
     def _help_menu_actions(self, action):
         if action.text() == 'About':
