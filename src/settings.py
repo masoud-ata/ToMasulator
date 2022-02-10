@@ -21,9 +21,15 @@ def get_style_from_settings_file() -> str:
 
 
 def save_style_in_settings_file(style: str) -> None:
-    _config['WindowSettings']['style'] = style
-    with open(_SETTINGS_FILE, 'w') as configfile:
-        _config.write(configfile)
+    try:
+        _config['WindowSettings']['style'] = style
+    except KeyError:
+        pass
+    try:
+        with open(_SETTINGS_FILE, 'w') as configfile:
+            _config.write(configfile)
+    except FileNotFoundError:
+        pass
 
 
 _config = configparser.ConfigParser()
