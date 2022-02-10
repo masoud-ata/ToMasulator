@@ -1,4 +1,5 @@
 import configparser
+import os
 
 
 _SETTINGS_FILE = 'settings.ini'
@@ -23,12 +24,10 @@ def get_style_from_settings_file() -> str:
 def save_style_in_settings_file(style: str) -> None:
     try:
         _config['WindowSettings']['style'] = style
-    except KeyError:
-        pass
-    try:
-        with open(_SETTINGS_FILE, 'w') as configfile:
-            _config.write(configfile)
-    except FileNotFoundError:
+        if os.path.exists(_SETTINGS_FILE):
+            with open(_SETTINGS_FILE, 'w') as configfile:
+                _config.write(configfile)
+    except (KeyError, FileNotFoundError):
         pass
 
 
