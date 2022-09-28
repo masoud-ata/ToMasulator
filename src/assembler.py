@@ -85,11 +85,13 @@ def __is_valid_num(field):
 
 
 def __make_instruction_from(line, instruction_tokens):
+    def remove_duplicate_spaces(raw_inst) -> str:
+        return " ".join(raw_inst.split())
     operation = instruction_tokens[0]
     field1 = instruction_tokens[1]
     field2 = instruction_tokens[2]
     field3 = instruction_tokens[3]
-    inst = Instruction(line)
+    inst = Instruction(remove_duplicate_spaces(line))
     inst.operation = operation
     if __operation_is_add_sub(operation) or __operation_is_mul_div(operation):
         inst.destination = field1

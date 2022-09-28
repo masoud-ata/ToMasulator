@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import auto
 from typing import List
 
 from instruction import Instruction
@@ -26,27 +26,25 @@ class InstructionMemory:
 
 
 class ReservationStation:
-    class State(Enum):
-        FREE = 0
-        JUST_ISSUED = 1
-        WAITING_FOR_OPERANDS = 2
-        EXECUTING = 3
-        MEMORY = 4
-        ATTEMPT_MEMORY_ACCESS = 5
-        ATTEMPT_WRITEBACK = 6
-        WRITE_BACK = 7
-        READ_OPERANDS = 8
+    class State:
+        FREE = auto(), ""
+        JUST_ISSUED = auto(), "I"
+        WAITING_FOR_OPERANDS = auto(), "-"
+        EXECUTING = auto(), "E"
+        MEMORY = auto(), "M"
+        ATTEMPT_MEMORY_ACCESS = auto(), "-"
+        ATTEMPT_WRITEBACK = auto(), "-"
+        WRITE_BACK = auto(), "W"
+        READ_OPERANDS = auto(), "R"
 
     def __init__(self, cpu, latency_in_cycles):
         self._cpu = cpu
-        self.states_acronyms = {}
-        self._create_states_acronyms()
         self._latency_in_cycles = latency_in_cycles
         self.state = self.State.FREE
         self.source1_provider = REGISTER_FILE
         self.source2_provider = REGISTER_FILE
         self.instruction = None
-        self._counter = 0
+        self._execution_counter = 0
         self.issue_number = 0
         self._writeback_succeeded = False
         self._memory_access_succeeded = False
@@ -56,7 +54,7 @@ class ReservationStation:
         self.source1_provider = REGISTER_FILE
         self.source2_provider = REGISTER_FILE
         self.instruction = None
-        self._counter = 0
+        self._execution_counter = 0
         self.issue_number = 0
         self._writeback_succeeded = False
         self._memory_access_succeeded = False
@@ -70,11 +68,11 @@ class ReservationStation:
     def is_busy(self) -> bool:
         return not self.is_free()
 
-    def get_state_text(self) -> str:
-        state = self.states_acronyms[self.state]
+    def get_state_abbreviation(self) -> str:
+        _, state_abbreviation = self.state
         if self.state is self.State.EXECUTING:
-            state += str(self._counter + 1)
-        return state
+            state_abbreviation += str(self._execution_counter + 1)
+        return state_abbreviation
 
     def issue(self, instruction, issue_number) -> None:
         self.instruction = instruction
@@ -125,14 +123,6 @@ class ReservationStation:
     def has_same_source_as_destination_of(self, rs: 'ReservationStation') -> bool:
         return self.instruction.source1 == rs.instruction.destination or self.instruction.source2 == rs.instruction.destination
 
-    def _create_states_acronyms(self) -> None:
-        self.states_acronyms = {
-            self.State.FREE: "",
-            self.State.READ_OPERANDS: "R",
-            self.State.JUST_ISSUED: "I",  self.State.MEMORY: "M", self.State.EXECUTING: "E", self.State.WRITE_BACK: "W",
-            self.State.ATTEMPT_MEMORY_ACCESS: "-", self.State.WAITING_FOR_OPERANDS: "-", self.State.ATTEMPT_WRITEBACK: "-"
-        }
-
     def _state_just_issued_logic(self) -> None:
         tomasulo = self._cpu.scheduler.algorithm_is_tomasulo()
         inst_is_store = self.instruction.is_store()
@@ -154,8 +144,8 @@ class ReservationStation:
                 self.state = self.State.EXECUTING if tomasulo else self.State.READ_OPERANDS
 
     def _state_executing_logic(self) -> None:
-        self._counter += 1
-        if self._counter == self._latency_in_cycles:
+        self._execution_counter += 1
+        if self._execution_counter == self._latency_in_cycles:
             if self.instruction.is_load() or (self.instruction.is_store() and self._operands_are_ready()):
                 self._cpu.data_memory.attempt_access(self)
                 self.state = self.State.ATTEMPT_MEMORY_ACCESS

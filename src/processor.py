@@ -131,7 +131,7 @@ class Processor:
         for rs in self.get_all_reservation_stations():
             if rs.state is not ReservationStation.State.FREE:
                 instruction_id = id(rs.instruction)
-                instruction_state_in_text = rs.get_state_text()
+                instruction_state_in_text = rs.get_state_abbreviation()
                 instruction_state_table.append((instruction_id, instruction_state_in_text))
         return instruction_state_table
 
