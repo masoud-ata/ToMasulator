@@ -62,7 +62,7 @@ class QCodeEditor(QPlainTextEdit):
             if block.isVisible() and (bottom >= event.rect().top()):
                 number = str(block_number + 1)
                 painter.setPen(Qt.black)
-                painter.drawText(0, top, self.line_number_area.width(), height, Qt.AlignRight, number)
+                painter.drawText(0, int(top), self.line_number_area.width(), height, Qt.AlignRight, number)
             block = block.next()
             top = bottom
             bottom = top + self.blockBoundingRect(block).height()
