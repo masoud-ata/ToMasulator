@@ -3,7 +3,7 @@ from typing import List
 from PyQt5.QtWidgets import (
     QPushButton, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QLineEdit, QGroupBox,
     QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QApplication, QMessageBox, QSplitter, QWidget,
-    QStyleFactory, QAction)
+    QStyleFactory, QAction, QFileDialog, QInputDialog)
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QPoint
 
@@ -11,6 +11,8 @@ from custom_editor import QCodeEditor
 from assembler import assemble
 from settings import save_style_in_settings_file
 from window_settings import UiSettings
+
+import os
 
 
 DEFAULT_PROGRAM = \
@@ -99,6 +101,14 @@ class MainWindow(QMainWindow):
             set_style_menu.addAction(style_action)
         set_style_menu.triggered.connect(self._set_style_menu_action)
 
+        load_file_action = QAction("Load file", self)
+        file_menu.addAction(load_file_action)
+        load_file_action.triggered.connect(self._load_file)
+
+        save_file_action = QAction("Save file", self)
+        file_menu.addAction(save_file_action)
+        save_file_action.triggered.connect(self._save_file)
+
         exit_action = QAction("Exit", self)
         file_menu.addAction(exit_action)
         exit_action.triggered.connect(self._exit_menu_action)
@@ -123,6 +133,26 @@ class MainWindow(QMainWindow):
                 self, UiSettings.ABOUT_WINDOW_TITLE, "<a " + UiSettings.ABOUT_WINDOW_GITHUB_LINK +
                 UiSettings.ABOUT_WINDOW_TEXT + "</a>"
             )
+
+    def _load_file(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "", "Assembly Files (*.asm);; Python Files (*.txt)", options=options)
+        if file_name:
+            with open(file_name) as f:
+                lines = f.read()
+                self.code_editor.setPlainText(lines)
+
+    def _save_file(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getSaveFileName(self, "QFileDialog.getSaveFileName()", "", "Assembly Files (*.asm)", options=options)
+        file_name, _ = os.path.splitext(file_name)
+        file_name += ".asm"
+        if file_name:
+            f = open(file_name, "w")
+            f.write(self.code_editor.toPlainText().lower())
+            f.close()
 
     def _init_code_editor(self) -> None:
         self.code_editor.move(UiSettings.CODE_EDITOR_POS)
