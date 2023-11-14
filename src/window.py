@@ -3,7 +3,7 @@ from typing import List
 from PyQt5.QtWidgets import (
     QPushButton, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QLineEdit, QGroupBox,
     QFrame, QVBoxLayout, QHBoxLayout, QComboBox, QApplication, QMessageBox, QSplitter, QWidget,
-    QStyleFactory, QAction, QFileDialog, QInputDialog)
+    QStyleFactory, QAction, QFileDialog)
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QPoint
 
@@ -150,9 +150,8 @@ class MainWindow(QMainWindow):
         file_name, _ = os.path.splitext(file_name)
         file_name += ".asm"
         if file_name:
-            f = open(file_name, "w")
-            f.write(self.code_editor.toPlainText().lower())
-            f.close()
+            with open(file_name, "w") as f:
+                f.write(self.code_editor.toPlainText().lower())
 
     def _init_code_editor(self) -> None:
         self.code_editor.move(UiSettings.CODE_EDITOR_POS)
