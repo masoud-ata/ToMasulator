@@ -13,13 +13,16 @@ from settings import save_style_in_settings_file
 from window_settings import UiSettings
 
 import os
+import glob
 
 
 DEFAULT_PROGRAM = \
     "fsw  f1, 0(x1) \nfadd f1, f2, f3 \nfsub f3, f4, f1\nfmul f5, f10, f10\n" \
     "fadd f8, f2, f3 \nfsub f9, f4, f6\nfmul f10, f10, f1\n"
 
-MAX_CYCLES_EXECUTED = 300
+MAX_SIMULATION_CYCLES = 500
+
+REGRESSION_DIRECTORY = "../regression"
 
 
 class MainWindow(QMainWindow):
@@ -109,6 +112,10 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_file_action)
         save_file_action.triggered.connect(self._save_file)
 
+        run_regression_action = QAction("Run regression", self)
+        file_menu.addAction(run_regression_action)
+        run_regression_action.triggered.connect(self._run_regression)
+
         exit_action = QAction("Exit", self)
         file_menu.addAction(exit_action)
         exit_action.triggered.connect(self._exit_menu_action)
@@ -137,7 +144,9 @@ class MainWindow(QMainWindow):
     def _load_file(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        file_name, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "", "Assembly Files (*.asm);; Python Files (*.txt)", options=options)
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "QFileDialog.getOpenFileName()", "", "Assembly Files (*.asm);; Text Files (*.txt)", options=options
+        )
         if file_name:
             with open(file_name) as f:
                 lines = f.read()
@@ -152,6 +161,34 @@ class MainWindow(QMainWindow):
         if file_name:
             with open(file_name, "w") as f:
                 f.write(self.code_editor.toPlainText().lower())
+
+    def _run_regression(self):
+        print("Running regression testing\n...")
+        files_names = glob.glob(f'{REGRESSION_DIRECTORY}/*.asm')
+
+        simulation_results = ""
+        for file_name in files_names:
+            with open(file_name) as file:
+                raw_assembly_code = file.read()
+                success, _, instructions = assemble(raw_assembly_code)
+                if success:
+                    self._controller.reset()
+                    self._controller.upload_to_memory(instructions)
+                    self._controller.set_num_cycles(1, 3, 7)
+                    self._controller.set_reservation_station_sizes(4, 3, 2)
+                    self._update_timing_table_instructions_visual(instructions)
+                    for _ in range(MAX_SIMULATION_CYCLES):
+                        if self._controller.there_is_work_to_do():
+                            self._controller.tick()
+                            simulation_results += self._get_debug_trace() + '\n'
+
+        with open(f'{REGRESSION_DIRECTORY}/golden.txt') as file:
+            golden_results = file.read()
+
+        if simulation_results != golden_results:
+            print(f'Regression failed!')
+        else:
+            print("Regression successful!")
 
     def _init_code_editor(self) -> None:
         self.code_editor.move(UiSettings.CODE_EDITOR_POS)
@@ -387,23 +424,25 @@ class MainWindow(QMainWindow):
             item_id = QTableWidgetItem(inst_state_text)
             self.timing_table.setItem(self.instruction_table[inst_id], cycle_no-1, item_id)
 
-    def _write_debug_trace(self) -> None:
+    def _get_debug_trace(self) -> str:
         cycle_no = self._controller.get_cycle_count()
-        print("Cycle: ", cycle_no)
+        trace = f'Cycle: {cycle_no}\n\t'
         for inst_id, inst_state_text in self._controller.get_reservation_stations_instruction_states():
-            print(self.instruction_table[inst_id], inst_state_text, ", ", end="")
-        print()
+            trace += f'{self.instruction_table[inst_id]} {inst_state_text} , '
+
+        return trace
 
     def _step_button_pressed(self) -> None:
-        self._controller.tick()
-        self._update_reservation_stations_visual()
-        self._update_instruction_queue_visual()
-        self._update_timing_table_content_visual()
-        self.statusBar().showMessage('Cycle: ' + str(self._controller.get_cycle_count()))
-        # self._write_debug_trace()
+        if self._controller.there_is_work_to_do():
+            self._controller.tick()
+            self._update_reservation_stations_visual()
+            self._update_instruction_queue_visual()
+            self._update_timing_table_content_visual()
+            self.statusBar().showMessage('Cycle: ' + str(self._controller.get_cycle_count()))
+            # print(self._get_debug_trace())
 
     def _run_button_pressed(self) -> None:
-        for i in range(MAX_CYCLES_EXECUTED):
+        for _ in range(MAX_SIMULATION_CYCLES):
             self._step_button_pressed()
 
     def _load_reset_button_pressed(self) -> None:

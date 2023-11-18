@@ -83,6 +83,9 @@ class Processor:
             self.cycle_count += 1
             self.scheduler.tick()
 
+    def there_is_work_to_do(self) -> bool:
+        return self._there_is_work_to_do()
+
     def update_instruction_queue(self) -> None:
         self.instruction_queue.consume()
         if not self._is_program_finished():

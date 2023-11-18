@@ -1,0 +1,82 @@
+Cycle: 1
+	1 I , 
+Cycle: 2
+	1 E1 , 2 I , 
+Cycle: 3
+	1 M , 2 E1 , 3 I , 
+Cycle: 4
+	2 E2 , 3 - , 4 I , 
+Cycle: 5
+	2 E3 , 3 - , 5 I , 4 E1 , 
+Cycle: 6
+	2 W , 3 - , 5 - , 4 E2 , 
+Cycle: 7
+	6 I , 3 E1 , 5 - , 4 E3 , 
+Cycle: 8
+	6 E1 , 3 E2 , 5 - , 4 E4 , 7 I , 
+Cycle: 9
+	6 E2 , 3 E3 , 5 - , 4 E5 , 7 E1 , 
+Cycle: 10
+	6 E3 , 3 W , 5 - , 4 E6 , 7 E2 , 
+Cycle: 11
+	6 W , 5 E1 , 4 E7 , 7 E3 , 
+Cycle: 12
+	5 E2 , 4 W , 7 E4 , 
+Cycle: 13
+	5 E3 , 7 E5 , 
+Cycle: 14
+	5 W , 7 E6 , 
+Cycle: 15
+	7 E7 , 
+Cycle: 16
+	7 W , 
+Cycle: 17
+	
+Cycle: 1
+	1 I , 
+Cycle: 2
+	1 E1 , 2 I , 
+Cycle: 3
+	1 E2 , 2 - , 3 I , 
+Cycle: 4
+	1 E3 , 2 - , 3 E1 , 
+Cycle: 5
+	1 W , 2 - , 3 E2 , 
+Cycle: 6
+	4 I , 2 E1 , 3 E3 , 
+Cycle: 7
+	4 - , 2 E2 , 3 W , 
+Cycle: 8
+	4 - , 2 E3 , 5 I , 
+Cycle: 9
+	4 - , 2 W , 5 E1 , 
+Cycle: 10
+	4 E1 , 5 E2 , 
+Cycle: 11
+	4 E2 , 5 E3 , 
+Cycle: 12
+	4 E3 , 5 W , 
+Cycle: 13
+	4 W , 
+Cycle: 14
+	
+Cycle: 1
+	1 I , 
+Cycle: 2
+	1 E1 , 2 I , 
+Cycle: 3
+	1 M , 2 E1 , 3 I , 
+Cycle: 4
+	1 W , 2 M , 3 - , 
+Cycle: 5
+	2 W , 3 - , 
+Cycle: 6
+	3 E1 , 
+Cycle: 7
+	3 E2 , 
+Cycle: 8
+	3 E3 , 
+Cycle: 9
+	3 W , 
+Cycle: 10
+	

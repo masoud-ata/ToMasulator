@@ -310,9 +310,8 @@ class Scheduler:
 
     def reset(self) -> None:
         self._issue_number = 0
-        self._register_stat = {"": REGISTER_FILE}
-        for i in range(32):
-            self._register_stat["f" + str(i)] = REGISTER_FILE
+        self._register_stat = {f'f{i}': REGISTER_FILE for i in range(32)}
+        self._register_stat[""] = REGISTER_FILE
 
     def set_algorithm(self, is_tomasulo=True) -> None:
         self._algorithm_is_tomasulo = is_tomasulo

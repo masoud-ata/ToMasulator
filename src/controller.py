@@ -16,6 +16,9 @@ class Controller:
     def reset(self) -> None:
         self._cpu.reset()
 
+    def there_is_work_to_do(self) -> bool:
+        return self._cpu.there_is_work_to_do()
+
     def upload_to_memory(self, instructions) -> None:
         self._cpu.upload_to_memory(instructions)
 
