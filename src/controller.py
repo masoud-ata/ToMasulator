@@ -1,14 +1,10 @@
 from typing import List
-
-from window import MainWindow
 from processor import Processor
 
 
 class Controller:
     def __init__(self):
         self._cpu = Processor()
-        self._ui = MainWindow(pos_x=300, pos_y=300, width=1610, height=600, title='ToMasulator', controller=self)
-        self._ui.load_reset()
 
     def tick(self) -> None:
         self._cpu.tick()
